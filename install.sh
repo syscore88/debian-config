@@ -404,10 +404,12 @@ download_deb "Discord" "https://discord.com/api/download?platform=linux&format=d
 LSFG_URL=$(get_github_deb_url "YuriSizov/ls-fg" "ls-fg_.*deb")
 LSFG_VK_URL=$(get_github_deb_url "YuriSizov/ls-fg-vk" "ls-fg-vk_.*deb")
 FAUGUS_URL=$(get_github_deb_url "faugus/faugus-launcher" "deb")
+OPENCODE_URL=$(get_github_deb_url "sst/opencode-desktop" "deb")
 
 [[ -n "$LSFG_URL" ]] && download_deb "ls-fg" "$LSFG_URL" "$DEB_DIR/lsfg.deb"
 [[ -n "$LSFG_VK_URL" ]] && download_deb "ls-fg-vk" "$LSFG_VK_URL" "$DEB_DIR/lsfg-vk.deb"
 [[ -n "$FAUGUS_URL" ]] && download_deb "Faugus Launcher" "$FAUGUS_URL" "$DEB_DIR/faugus.deb"
+[[ -n "$OPENCODE_URL" ]] && download_deb "opencode-desktop" "$OPENCODE_URL" "$DEB_DIR/opencode-desktop.deb"
 
 shopt -s nullglob
 DEB_FILES=("$DEB_DIR"/*.deb)
