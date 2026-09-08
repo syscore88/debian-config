@@ -194,7 +194,7 @@ fi
 
 wait_for_apt
 sudo apt-get update -yq || true
-for pkg in curl wget gnupg pciutils; do
+for pkg in curl wget gnupg pciutils dconf-cli; do
     sudo apt-get install -yq "$pkg" || true
 done
 sudo mkdir -p /etc/apt/keyrings
@@ -404,7 +404,7 @@ download_deb "Discord" "https://discord.com/api/download?platform=linux&format=d
 LSFG_URL=$(get_github_deb_url "YuriSizov/ls-fg" "ls-fg_.*deb")
 LSFG_VK_URL=$(get_github_deb_url "YuriSizov/ls-fg-vk" "ls-fg-vk_.*deb")
 FAUGUS_URL=$(get_github_deb_url "faugus/faugus-launcher" "deb")
-OPENCODE_URL=$(get_github_deb_url "sst/opencode-desktop" "deb")
+OPENCODE_URL=$(get_github_deb_url "sst/opencode" "opencode-desktop-linux-amd64\\.deb")
 
 [[ -n "$LSFG_URL" ]] && download_deb "ls-fg" "$LSFG_URL" "$DEB_DIR/lsfg.deb"
 [[ -n "$LSFG_VK_URL" ]] && download_deb "ls-fg-vk" "$LSFG_VK_URL" "$DEB_DIR/lsfg-vk.deb"
@@ -430,7 +430,8 @@ show_progress 9 $TOTAL_STEPS "$MSG_PHASE_3"
 wait_for_apt
 sudo apt-get install -yq virt-manager qemu-system qemu-utils libvirt-daemon-system libvirt-clients ovmf dnsmasq bluetooth bluez bluez-firmware bluez-tools ufw || true
 
-dconf load /org/virt-manager/virt-manager/ <<'EOF'
+if command -v dconf &>/dev/null; then
+    dconf load /org/virt-manager/virt-manager/ <<'EOF'
 [/]
 manager-window-height=297
 manager-window-width=478
@@ -469,6 +470,9 @@ network-traffic=false
 autoconnect=1
 vm-window-size=(1280, 842)
 EOF
+else
+    log_warn "Brak polecenia dconf – pomijam wczytanie ustawień virt-managera." "dconf command not found – skipping virt-manager settings import."
+fi
 
 for svc in libvirtd virtqemud; do
     if systemctl list-unit-files "${svc}.service" 2>/dev/null | grep -q "$svc"; then
