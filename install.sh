@@ -281,7 +281,8 @@ PACKAGES_INSTALL=(
     libayatana-appindicator3-1 gamemode vulkan-tools mangohud qmmp qmmp-plugin-pack
     vkd3d-compiler goverlay gcc make cmake meson ninja-build just build-essential git
     gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly
-    zsh zsh-syntax-highlighting zsh-autosuggestions 
+    zsh zsh-syntax-highlighting zsh-autosuggestions
+    pkg-config libvulkan-dev mesa-common-dev
 )
 for pkg in "${PACKAGES_INSTALL[@]}"; do
     sudo apt-get install -yq "$pkg" || true
@@ -401,11 +402,9 @@ download_deb() { wget -q --timeout=30 -O "$3" "$2" || rm -f "$3"; }
 get_github_deb_url() { curl -sfL "https://api.github.com/repos/${1}/releases/latest" | grep "browser_download_url.*${2}" | cut -d '"' -f 4 || true; }
 
 download_deb "Discord" "https://discord.com/api/download?platform=linux&format=deb" "$DEB_DIR/discord.deb"
-LSFG_VK_URL=$(get_github_deb_url "PancakeTAS/lsfg-vk" "lsfg-vk-.*x86_64\\.deb")
 FAUGUS_URL=$(get_github_deb_url "faugus/faugus-launcher" "deb")
 OPENCODE_URL=$(get_github_deb_url "anomalyco/opencode" "opencode-desktop-linux-amd64\\.deb")
 
-[[ -n "$LSFG_VK_URL" ]] && download_deb "lsfg-vk" "$LSFG_VK_URL" "$DEB_DIR/lsfg-vk.deb"
 [[ -n "$FAUGUS_URL" ]] && download_deb "Faugus Launcher" "$FAUGUS_URL" "$DEB_DIR/faugus.deb"
 [[ -n "$OPENCODE_URL" ]] && download_deb "opencode-desktop" "$OPENCODE_URL" "$DEB_DIR/opencode-desktop.deb"
 
@@ -419,6 +418,40 @@ if [[ ${#DEB_FILES[@]} -gt 0 ]]; then
 fi
 shopt -u nullglob
 rm -rf "$DEB_DIR"
+
+install_lsfg_vk() {
+    local repo_url="https://git.lsfg-vk.dev/lsfg-vk.git"
+    local latest_tag
+    latest_tag="$(git ls-remote --tags --refs "$repo_url" 2>/dev/null \
+        | awk -F'refs/tags/' '{print $2}' \
+        | grep -Ev -- '-(dev|rc|alpha|beta)' \
+        | sed 's/^v//' \
+        | sort -V \
+        | tail -n1)"
+    [[ -z "$latest_tag" ]] && return 0
+
+    local url="https://git.lsfg-vk.dev/lsfg-vk/snapshot/lsfg-vk-${latest_tag}.tar.xz"
+    local src_dir
+    src_dir="$(mktemp -d)"
+
+    curl -fsSL --connect-timeout 15 --retry 2 -o "${src_dir}/lsfg-vk.tar.xz" "$url" || { rm -rf "$src_dir"; return 0; }
+    tar -xJf "${src_dir}/lsfg-vk.tar.xz" -C "$src_dir" || { rm -rf "$src_dir"; return 0; }
+
+    local proj_dir
+    proj_dir="$(find "$src_dir" -mindepth 1 -maxdepth 1 -type d | head -n1)"
+    [[ -z "$proj_dir" ]] && proj_dir="$src_dir"
+
+    cmake -S "$proj_dir" -B "${proj_dir}/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
+        -DCMAKE_INSTALL_PREFIX=/usr/local \
+        -DLSFGVK_BUILD_UI=OFF \
+    && cmake --build "${proj_dir}/build" \
+    && sudo cmake --install "${proj_dir}/build" || true
+
+    rm -rf "$src_dir"
+}
+install_lsfg_vk || true
 
 # ==========================================================
 #  ETAP 3/3: KONFIGURACJA USŁUG, BOOTLOADERA I ŚRODOWISKA
