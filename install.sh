@@ -402,10 +402,10 @@ download_deb() { wget -q --timeout=30 -O "$3" "$2" || rm -f "$3"; }
 get_github_deb_url() { curl -sfL "https://api.github.com/repos/${1}/releases/latest" | grep "browser_download_url.*${2}" | cut -d '"' -f 4 || true; }
 
 download_deb "Discord" "https://discord.com/api/download?platform=linux&format=deb" "$DEB_DIR/discord.deb"
-FAUGUS_URL=$(get_github_deb_url "faugus/faugus-launcher" "deb")
+HEROIC_URL=$(get_github_deb_url "Heroic-Games-Launcher/HeroicGamesLauncher" "amd64\\.deb")
 OPENCODE_URL=$(get_github_deb_url "anomalyco/opencode" "opencode-desktop-linux-amd64\\.deb")
 
-[[ -n "$FAUGUS_URL" ]] && download_deb "Faugus Launcher" "$FAUGUS_URL" "$DEB_DIR/faugus.deb"
+[[ -n "$HEROIC_URL" ]] && download_deb "Heroic Games Launcher" "$HEROIC_URL" "$DEB_DIR/heroic.deb"
 [[ -n "$OPENCODE_URL" ]] && download_deb "opencode-desktop" "$OPENCODE_URL" "$DEB_DIR/opencode-desktop.deb"
 
 shopt -s nullglob
