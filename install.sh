@@ -402,11 +402,11 @@ download_deb() { wget -q --timeout=30 -O "$3" "$2" || rm -f "$3"; }
 get_github_deb_url() { curl -sfL "https://api.github.com/repos/${1}/releases/latest" | grep "browser_download_url.*${2}" | cut -d '"' -f 4 || true; }
 
 download_deb "Discord" "https://discord.com/api/download?platform=linux&format=deb" "$DEB_DIR/discord.deb"
-HEROIC_URL=$(get_github_deb_url "Heroic-Games-Launcher/HeroicGamesLauncher" "amd64\\.deb")
 OPENCODE_URL=$(get_github_deb_url "anomalyco/opencode" "opencode-desktop-linux-amd64\\.deb")
+FAUGUS_URL=$(get_github_deb_url "Faugus/faugus-launcher" "all\\.deb")
 
-[[ -n "$HEROIC_URL" ]] && download_deb "Heroic Games Launcher" "$HEROIC_URL" "$DEB_DIR/heroic.deb"
 [[ -n "$OPENCODE_URL" ]] && download_deb "opencode-desktop" "$OPENCODE_URL" "$DEB_DIR/opencode-desktop.deb"
+[[ -n "$FAUGUS_URL" ]] && download_deb "Faugus Launcher" "$FAUGUS_URL" "$DEB_DIR/faugus.deb"
 
 shopt -s nullglob
 DEB_FILES=("$DEB_DIR"/*.deb)
@@ -418,14 +418,6 @@ if [[ ${#DEB_FILES[@]} -gt 0 ]]; then
 fi
 shopt -u nullglob
 rm -rf "$DEB_DIR"
-
-APPLICATIONS_DIR="$HOME/.local/share/applications"
-for shortcut in \
-    "gay.pancake.lsfg-vk-ui.desktop" \
-    "io.github.eugeniosegala.mako.desktop" \
-    "io.github.eugeniosegala.mako.uninstaller.desktop"; do
-    rm -f "$APPLICATIONS_DIR/$shortcut"
-done
 
 # ==========================================================
 #  ETAP 3/3: KONFIGURACJA USŁUG, BOOTLOADERA I ŚRODOWISKA
