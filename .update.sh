@@ -138,7 +138,6 @@ show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_UPDATE"
 # ---------------------------------------------------------------
 sudo env LC_ALL=C DEBIAN_FRONTEND=noninteractive apt-get update 2>&1 | grep -v "does not support architecture\|Skipping acquire of configured file"
 
-# Capture old -> new version info before the upgrade actually happens
 APT_UPGRADABLE=$(LC_ALL=C apt list --upgradable 2>/dev/null | tail -n +2)
 
 APT_OUTPUT=$(sudo env LC_ALL=C DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -y 2>&1)
