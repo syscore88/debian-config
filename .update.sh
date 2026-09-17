@@ -22,28 +22,24 @@ SCRIPT_LANG=$(detect_lang)
 if [ "$SCRIPT_LANG" = "pl" ]; then
     MSG_TITLE="                  KONSERWACJA SYSTEMU                  "
     MSG_ASK_PASS="Proszę podać hasło administratora (sudo):"
-    MSG_PHASE_UPDATE="[1/4] Aktualizacja systemu i aplikacji..."
+    MSG_PHASE_UPDATE="[1/2] Aktualizacja i optymalizacja..."
     MSG_PKGS_UPDATED="Aktualizowane pakiety:"
     MSG_PKGS_NONE="Brak pakietów do aktualizacji (system aktualny)."
     MSG_FLATPAK_UPDATED="Aktualizowane pakiety Flatpak:"
-    MSG_PHASE_CLEAN_SYS="[2/4] Czyszczenie systemowe (sudo)..."
-    MSG_PHASE_CLEAN_USER="[3/4] Czyszczenie użytkownika..."
-    MSG_PHASE_RESTART="[4/4] Sprawdzanie konieczności restartu..."
-    MSG_DONE="AKTUALIZACJA I CZYSZCZENIE ZAKOŃCZONE!"
+    MSG_PHASE_CLEAN_SYS="[2/2] Czyszczenie systemowe..."
+    MSG_DONE="             KONSERWACJA SYSTEMU ZAKOŃCZONA!           "
     MSG_RESTART_WARN="UWAGA: Zalecany jest restart komputera"
     MSG_NO_RESTART="Restart systemu nie jest aktualnie wymagany."
     MSG_PRESS_ENTER="Naciśnij Enter, aby zamknąć okno..."
 else
-    MSG_TITLE="                 SYSTEM MAINTENANCE                    "
+    MSG_TITLE="                   SYSTEM MAINTENANCE                   "
     MSG_ASK_PASS="Please enter the administrator (sudo) password:"
-    MSG_PHASE_UPDATE="[1/4] Updating system and applications..."
+    MSG_PHASE_UPDATE="[1/2] Updates and optimization..."
     MSG_PKGS_UPDATED="Updating packages:"
     MSG_PKGS_NONE="No packages to update (system is up to date)."
     MSG_FLATPAK_UPDATED="Updating Flatpak packages:"
-    MSG_PHASE_CLEAN_SYS="[2/4] System cleanup (sudo)..."
-    MSG_PHASE_CLEAN_USER="[3/4] User cleanup..."
-    MSG_PHASE_RESTART="[4/4] Checking if a restart is needed..."
-    MSG_DONE="UPDATE AND CLEANUP COMPLETE!"
+    MSG_PHASE_CLEAN_SYS="[2/2] System cleanup..."
+    MSG_DONE="             SYSTEM MAINTENANCE COMPLETE!           "
     MSG_RESTART_WARN="WARNING: A system restart is recommended"
     MSG_NO_RESTART="A system restart is not currently required."
     MSG_PRESS_ENTER="Press Enter to close this window..."
@@ -251,7 +247,7 @@ if [ -n "$KERNEL_PACKAGES" ]; then
     sudo env LC_ALL=C DEBIAN_FRONTEND=noninteractive apt-get purge $KERNEL_PACKAGES -y
     REBOOT_NEEDED=true
 fi
-STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_USER"
+STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 # ---------------------------------------------------------------
 # PHASE: USER CLEANUP
@@ -263,10 +259,10 @@ find ~/.cache -type f -atime +14 \
     ! -path "*/BraveSoftware/*" \
     ! -path "*/opera/*" \
     -delete 2>/dev/null
-STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_USER"
+STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 find ~/.cache/thumbnails -type f -atime +7 -delete 2>/dev/null
-STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_USER"
+STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 if command -v flatpak &> /dev/null; then
     FLATPAK_BEFORE=$(flatpak list --user --app --columns=application,version 2>/dev/null)
@@ -298,17 +294,17 @@ if command -v flatpak &> /dev/null; then
         done
     fi
 fi
-STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_USER"
+STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 fc-cache -fv
-STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_USER"
+STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 USER_ID=$(id -u)
 if [ -S "/run/user/$USER_ID/bus" ]; then
     DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$USER_ID/bus" dconf reset /org/virt-manager/virt-manager/urls/isos 2>/dev/null
 fi
 rm -rf "$HOME/.cache/virt-manager" 2>/dev/null
-STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_RESTART"
+STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 # ---------------------------------------------------------------
 # PHASE: RESTART CHECK
@@ -316,12 +312,12 @@ STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_RESTART"
 if [ -f /var/run/reboot-required ]; then
     REBOOT_NEEDED=true
 fi
-STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_RESTART"
+STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 if [ "$FWUPD_RESTART_NEEDED" = true ]; then
     REBOOT_NEEDED=true
 fi
-STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_RESTART"
+STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 echo -e "\n" >&3
 echo -e "${GREEN}======================================================${NC}" >&3
