@@ -20,7 +20,7 @@ detect_lang() {
 SCRIPT_LANG=$(detect_lang)
 
 if [ "$SCRIPT_LANG" = "pl" ]; then
-    MSG_TITLE="       KOMPLEKSOWY SKRYPT AKTUALIZACJI I CZYSZCZENIA  "
+    MSG_TITLE="                  KONSERWACJA SYSTEMU                  "
     MSG_ASK_PASS="Proszę podać hasło administratora (sudo):"
     MSG_PHASE_UPDATE="[1/4] Aktualizacja systemu i aplikacji..."
     MSG_PKGS_UPDATED="Aktualizowane pakiety:"
@@ -34,7 +34,7 @@ if [ "$SCRIPT_LANG" = "pl" ]; then
     MSG_NO_RESTART="Restart systemu nie jest aktualnie wymagany."
     MSG_PRESS_ENTER="Naciśnij Enter, aby zamknąć okno..."
 else
-    MSG_TITLE="         COMPREHENSIVE UPDATE AND CLEANUP SCRIPT       "
+    MSG_TITLE="                 SYSTEM MAINTENANCE                    "
     MSG_ASK_PASS="Please enter the administrator (sudo) password:"
     MSG_PHASE_UPDATE="[1/4] Updating system and applications..."
     MSG_PKGS_UPDATED="Updating packages:"
