@@ -307,12 +307,12 @@ PACKAGES_INSTALL=(
     libayatana-appindicator3-1 gamemode vulkan-tools mangohud qmmp 
     vkd3d-compiler gcc make cmake meson ninja-build just build-essential git
     gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly
-    zsh zsh-syntax-highlighting zsh-autosuggestions
-    pkg-config libvulkan-dev mesa-common-dev
+    zsh zsh-syntax-highlighting zsh-autosuggestions pkg-config libvulkan-dev mesa-common-dev  
     qt6-qpa-plugins libqt6quick6 qml6-module-qtquick-controls qml6-module-qtquick-layouts
     qml6-module-qtquick-window qml6-module-qtquick-dialogs qml6-module-qtqml-workerscript
     qml6-module-qtquick-templates qml6-module-qt-labs-folderlistmodel
 )
+    
 for pkg in "${PACKAGES_INSTALL[@]}"; do
     sudo apt-get install -yq "$pkg" || FAILED_PACKAGES+=("$pkg")
 done
