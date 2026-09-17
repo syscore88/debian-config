@@ -297,7 +297,7 @@ show_progress 4 $TOTAL_STEPS "$MSG_PHASE_2"
 
 wait_for_apt
 PACKAGES_INSTALL=(
-    google-chrome-stable brave-origin thunderbird thunderbird-l10n-pl
+    google-chrome-stable brave-origin 
     qbittorrent audacity gimp krita gmic mixxx kdenlive handbrake soundconverter
     vim dconf-editor hunspell-pl fastfetch bleachbit profile-sync-daemon
     plymouth plymouth-themes unrar-free mc btrfs-progs exfatprogs ntfs-3g os-prober
