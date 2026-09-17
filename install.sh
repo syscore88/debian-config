@@ -32,6 +32,7 @@ exec >>"$TMP_LOG" 2>&1
 
 cleanup_on_exit() {
     local exit_code=$?
+    declare -F restore_packagekit >/dev/null && restore_packagekit || true
     printf '\033[?7h' >&3
     if [ "$exit_code" -ne 0 ] || [ "${#FAILED_PACKAGES[@]}" -gt 0 ]; then
         echo -e "\n" >&3
@@ -156,14 +157,61 @@ fi
 
 printf '\033[?7l' >&3
 
+# ==========================================================
+# PACKAGEKIT + BLOKADA MENEDŻERA PAKIETÓW
+# ==========================================================
+PACKAGEKIT_MASKED=0
+PACKAGEKIT_UNITS=(packagekit.service packagekit-offline-update.service)
+
+disable_packagekit() {
+    [[ "${PACKAGEKIT_MASKED:-0}" -eq 1 ]] && return 0
+    sudo systemctl stop "${PACKAGEKIT_UNITS[@]}" 2>/dev/null || true
+    if command -v killall >/dev/null 2>&1; then
+        sudo killall -q packagekitd 2>/dev/null || true
+    else
+        sudo pkill -x packagekitd 2>/dev/null || true
+    fi
+    sudo systemctl mask "${PACKAGEKIT_UNITS[@]}" 2>/dev/null || true
+    PACKAGEKIT_MASKED=1
+    log_info "PackageKit zatrzymany i zamaskowany na czas instalacji." \
+             "PackageKit stopped and masked for the duration of the installation."
+}
+
+restore_packagekit() {
+    [[ "${PACKAGEKIT_MASKED:-0}" -eq 1 ]] || return 0
+    sudo systemctl unmask "${PACKAGEKIT_UNITS[@]}" 2>/dev/null || true
+    PACKAGEKIT_MASKED=0
+    log_info "PackageKit odmaskowany." "PackageKit unmasked."
+}
+
+_pkg_lock_busy() {
+    local f
+    for f in /var/lib/dpkg/lock-frontend \
+             /var/lib/dpkg/lock \
+             /var/lib/apt/lists/lock \
+             /var/cache/apt/archives/lock; do
+        [[ -e "$f" ]] || continue
+        sudo fuser "$f" >/dev/null 2>&1 && return 0
+    done
+    pgrep -x 'apt|apt-get|apt-config|dpkg|unattended-upgrade|packagekitd' >/dev/null 2>&1 && return 0
+    return 1
+}
+
 wait_for_apt() {
-    sudo systemctl stop packagekit 2>/dev/null || true
-    while sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || \
-          sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || \
-          sudo killall -0 apt apt-get dpkg 2>/dev/null; do
+    local timeout="${1:-300}" waited=0
+    disable_packagekit
+    while _pkg_lock_busy; do
+        if (( waited >= timeout )); then
+            log_warn "Blokada menedżera pakietów trwa ponad ${timeout}s - kontynuuję mimo to." \
+                     "Package manager lock held for over ${timeout}s - continuing anyway."
+            break
+        fi
         sleep 3
+        waited=$(( waited + 3 ))
     done
 }
+
+disable_packagekit
 
 # ==========================================================
 #  ETAP 1/4: PRZYGOTOWYWANIE
@@ -463,6 +511,8 @@ rm -rf "$LSFG_TMP"
 #  ETAP 3/4: OPTYMALIZACJA
 # ==========================================================
 show_progress 9 $TOTAL_STEPS "$MSG_PHASE_3"
+
+restore_packagekit
 
 wait_for_apt
 sudo apt-get install -yq virt-manager qemu-system qemu-utils libvirt-daemon-system libvirt-clients ovmf dnsmasq bluetooth bluez bluez-firmware bluez-tools ufw || true
