@@ -304,7 +304,7 @@ PACKAGES_INSTALL=(
     adb fastboot fsarchiver inxi pv rsync cdemu-daemon cdemu-client
     7zip makeself zenity innoextract needrestart flatpak timeshift
     python3-defusedxml python3-packaging python3-pip python3-tqdm vlc vlc-plugin-access-extra
-    libayatana-appindicator3-1 gamemode vulkan-tools mangohud qmmp qmmp-plugin-pack
+    libayatana-appindicator3-1 gamemode vulkan-tools mangohud qmmp 
     vkd3d-compiler gcc make cmake meson ninja-build just build-essential git
     gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly
     zsh zsh-syntax-highlighting zsh-autosuggestions
