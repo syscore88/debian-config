@@ -499,13 +499,31 @@ fi
 shopt -u nullglob
 rm -rf "$DEB_DIR"
 
-LSFG_TMP="$(mktemp -d)"
-LSFG_URL="$(curl -fsSL https://builds.lsfg-vk.dev/ | grep -oE 'https://[^"'"'"']+linux[^"'"'"']*\.tar\.xz' | head -n1 || true)"
-if [[ -n "$LSFG_URL" ]] && curl -fsSL -o "$LSFG_TMP/lsfg-vk.tar.xz" "$LSFG_URL"; then
-    mkdir -p "$HOME/.local"
-    tar -xf "$LSFG_TMP/lsfg-vk.tar.xz" -C "$HOME/.local" || true
+wait_for_apt
+sudo apt-get install -yq \
+    curl \
+    llvm clang clang-tools clang-tidy \
+    qt6-base-dev qt6-base-dev-tools \
+    qt6-tools-dev qt6-tools-dev-tools \
+    qt6-declarative-dev qt6-declarative-dev-tools || true
+
+LSFG_SRC_DIR="$(mktemp -d)"
+if git clone --depth=1 https://git.lsfg-vk.dev/lsfg-vk.git "$LSFG_SRC_DIR/lsfg-vk"; then
+    (
+        cd "$LSFG_SRC_DIR/lsfg-vk"
+        cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
+            -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DLSFGVK_BUILD_UI=ON
+        cmake --build build
+        sudo cmake --install build
+    ) || log_warn "Nie udało się zbudować lsfg-vk ze źródeł." "Failed to build lsfg-vk from source."
+else
+    log_warn "Nie udało się sklonować repozytorium lsfg-vk." "Failed to clone the lsfg-vk repository."
 fi
-rm -rf "$LSFG_TMP"
+rm -rf "$LSFG_SRC_DIR"
 
 # ==========================================================
 #  ETAP 3/4: OPTYMALIZACJA
