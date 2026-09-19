@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==========================================================
-# KOMPLEKSOWY SKRYPT KONFIGURACYJNY SYSTEMU (DEBIAN 13)
+# KOMPLEKSOWY SKRYPT KONFIGURACYJNY SYSTEMU DEBIAN 13
 # ==========================================================
 
 set -Eeuo pipefail
