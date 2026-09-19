@@ -1,10 +1,10 @@
 #!/bin/bash
 set -uo pipefail
 
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
+INFO='\033[0;34m'
+SUCCESS='\033[0;32m'
+WARN='\033[1;33m'
+ERR='\033[0;31m'
 NC='\033[0m'
 
 detect_lang() {
@@ -58,9 +58,9 @@ cleanup_on_exit() {
     if [ "$exit_code" -ne 0 ]; then
         cp -f "$TMP_LOG" "$LOG_FILE" 2>/dev/null || true
         if [ "$SCRIPT_LANG" = "pl" ]; then
-            echo -e "${RED}✘ Wystąpił błąd (kod: $exit_code). Szczegółowy log zapisano w: $LOG_FILE${NC}" >&3
+            echo -e "${ERR}✘ Wystąpił błąd (kod: $exit_code). Szczegółowy log zapisano w: $LOG_FILE${NC}" >&3
         else
-            echo -e "${RED}✘ An error occurred (code: $exit_code). Detailed log saved to: $LOG_FILE${NC}" >&3
+            echo -e "${ERR}✘ An error occurred (code: $exit_code). Detailed log saved to: $LOG_FILE${NC}" >&3
         fi
     fi
     rm -f "$TMP_LOG"
@@ -107,9 +107,9 @@ print_pkg_list() {
     local list="$2"
     [ -z "$list" ] && return
     printf "\r\033[K" >&3
-    echo -e "${BLUE}${title}${NC}" >&3
+    echo -e "${INFO}${title}${NC}" >&3
     while IFS= read -r pkg; do
-        [ -n "$pkg" ] && echo -e "  ${GREEN}•${NC} $pkg" >&3
+        [ -n "$pkg" ] && echo -e "  ${SUCCESS}•${NC} $pkg" >&3
     done <<< "$list"
 }
 
@@ -120,10 +120,10 @@ if ! command -v visudo >/dev/null 2>&1 || sudo --version 2>/dev/null | grep -qi 
     USE_RUN0=1
 fi
 
-echo -e "${BLUE}======================================================${NC}" >&3
-echo -e "${BLUE}${MSG_TITLE}${NC}" >&3
-echo -e "${BLUE}======================================================${NC}" >&3
-echo -e "${YELLOW}${MSG_ASK_PASS}${NC}" >&3
+echo -e "${INFO}======================================================${NC}" >&3
+echo -e "${INFO}${MSG_TITLE}${NC}" >&3
+echo -e "${INFO}======================================================${NC}" >&3
+echo -e "${WARN}${MSG_ASK_PASS}${NC}" >&3
 if [[ -r /dev/tty ]]; then
     IFS= read -rs SUDO_PASSWORD < /dev/tty || true
 else
@@ -142,15 +142,18 @@ polkit.addRule(function(action, subject) {
 EOF
     if printf '%s\n' "${SUDO_PASSWORD:-}" | sudo -S -p '' install -m 0644 -o root -g root "$POLKIT_TMP" "$RUN0_NOPASSWD_FILE" &>/dev/null; then
         printf '%s\n' "${SUDO_PASSWORD:-}" | sudo -S -p '' systemctl try-restart polkit 2>/dev/null || true
+        if ! sudo -n true 2>/dev/null; then
+            printf '%s\n' "${SUDO_PASSWORD:-}" | sudo -S -p '' systemctl try-restart polkit 2>/dev/null || true
+        fi
         rm -f "$POLKIT_TMP"
         unset SUDO_PASSWORD
     else
         rm -f "$POLKIT_TMP"
         unset SUDO_PASSWORD
         if [ "$SCRIPT_LANG" = "pl" ]; then
-            echo -e "${RED}✘ Nieprawidłowe hasło lub nie udało się nadać uprawnień tymczasowych – przerywam. Jeśli w /etc/sudoers działa opcja targetpw, podaj hasło roota.${NC}" >&3
+            echo -e "${ERR}✘ Nieprawidłowe hasło lub nie udało się nadać uprawnień tymczasowych – przerywam. Jeśli w /etc/sudoers działa opcja targetpw, podaj hasło roota.${NC}" >&3
         else
-            echo -e "${RED}✘ Wrong password or failed to grant temporary privileges - aborting. If targetpw is set in /etc/sudoers, enter the root password.${NC}" >&3
+            echo -e "${ERR}✘ Wrong password or failed to grant temporary privileges - aborting. If targetpw is set in /etc/sudoers, enter the root password.${NC}" >&3
         fi
         exit 1
     fi
@@ -161,13 +164,20 @@ else
        && printf '%s\n' "${SUDO_PASSWORD:-}" | sudo -S -p '' install -m 0440 -o root -g root "$SUDOERS_TMP" /etc/sudoers.d/99-temp-update &>/dev/null; then
         rm -f "$SUDOERS_TMP"
         unset SUDO_PASSWORD
+        if ! sudo -n true 2>/dev/null; then
+            if [ "$SCRIPT_LANG" = "pl" ]; then
+                echo -e "${WARN}⚠ Reguła NOPASSWD zainstalowana, ale sudo nadal prosi o hasło - sprawdź 'sudo -l' (możliwa inna reguła w /etc/sudoers nadpisująca wpis z sudoers.d).${NC}" >&3
+            else
+                echo -e "${WARN}⚠ NOPASSWD rule installed, but sudo still asks for a password - check 'sudo -l' (a rule in /etc/sudoers may be overriding the sudoers.d entry).${NC}" >&3
+            fi
+        fi
     else
         rm -f "$SUDOERS_TMP"
         unset SUDO_PASSWORD
         if [ "$SCRIPT_LANG" = "pl" ]; then
-            echo -e "${RED}✘ Nieprawidłowe hasło lub składnia pliku sudoers – przerywam. Jeśli w /etc/sudoers działa opcja targetpw, podaj hasło roota.${NC}" >&3
+            echo -e "${ERR}✘ Nieprawidłowe hasło lub składnia pliku sudoers – przerywam. Jeśli w /etc/sudoers działa opcja targetpw, podaj hasło roota.${NC}" >&3
         else
-            echo -e "${RED}✘ Wrong password or invalid sudoers syntax - aborting. If targetpw is set in /etc/sudoers, enter the root password.${NC}" >&3
+            echo -e "${ERR}✘ Wrong password or invalid sudoers syntax - aborting. If targetpw is set in /etc/sudoers, enter the root password.${NC}" >&3
         fi
         exit 1
     fi
@@ -175,9 +185,9 @@ fi
 
 if ! sudo -n true 2>/dev/null; then
     if [ "$SCRIPT_LANG" = "pl" ]; then
-        echo -e "${RED}✘ Nie udało się uzyskać uprawnień bez hasła – przerywam.${NC}" >&3
+        echo -e "${ERR}✘ Nie udało się uzyskać uprawnień bez hasła – przerywam.${NC}" >&3
     else
-        echo -e "${RED}✘ Could not obtain passwordless privileges - aborting.${NC}" >&3
+        echo -e "${ERR}✘ Could not obtain passwordless privileges - aborting.${NC}" >&3
     fi
     exit 1
 fi
@@ -203,7 +213,7 @@ if [ -n "$PKG_LIST" ]; then
     print_pkg_list "$MSG_PKGS_UPDATED" "$PKG_LIST"
 else
     printf "\r\033[K" >&3
-    echo -e "${BLUE}${MSG_PKGS_NONE}${NC}" >&3
+    echo -e "${INFO}${MSG_PKGS_NONE}${NC}" >&3
 fi
 
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_UPDATE"
@@ -386,14 +396,14 @@ else
 fi
 
 echo -e "\n" >&3
-echo -e "${GREEN}======================================================${NC}" >&3
-echo -e "${GREEN}${MSG_DONE}${NC}" >&3
-echo -e "${GREEN}======================================================${NC}" >&3
+echo -e "${SUCCESS}======================================================${NC}" >&3
+echo -e "${SUCCESS}${MSG_DONE}${NC}" >&3
+echo -e "${SUCCESS}======================================================${NC}" >&3
 
 if [ "$REBOOT_NEEDED" = true ]; then
-    echo -e "${YELLOW}${MSG_RESTART_WARN}${NC}" >&3
+    echo -e "${WARN}${MSG_RESTART_WARN}${NC}" >&3
 else
-    echo -e "${GREEN}${MSG_NO_RESTART}${NC}" >&3
+    echo -e "${SUCCESS}${MSG_NO_RESTART}${NC}" >&3
 fi
-echo -e "${YELLOW}${MSG_PRESS_ENTER}${NC}" >&3
+echo -e "${WARN}${MSG_PRESS_ENTER}${NC}" >&3
 read -r
