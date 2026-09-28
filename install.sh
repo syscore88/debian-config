@@ -375,7 +375,7 @@ PACKAGES_INSTALL=(
     python3-defusedxml python3-packaging python3-pip python3-tqdm vlc vlc-plugin-access-extra
     libayatana-appindicator3-1 gamemode vulkan-tools mangohud qmmp
     vkd3d-compiler gcc g++ clang llvm make cmake meson ninja-build just build-essential git
-    libgl1-mesa-dev qt6-tools-dev
+    libgl1-mesa-dev qt6-tools-dev ghostwriter
     gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly
     zsh zsh-syntax-highlighting zsh-autosuggestions pkg-config libvulkan-dev mesa-common-dev
     qt6-qpa-plugins libqt6quick6 qml6-module-qtquick-controls qml6-module-qtquick-layouts
