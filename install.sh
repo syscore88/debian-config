@@ -338,8 +338,17 @@ wait_for_apt
 install_missing -yq isenkram-cli firmware-linux firmware-linux-nonfree || true
 sudo isenkram-autoinstall-firmware || true
 
-PACKAGES_REMOVE=(nano konqueror plasma-browser-integration plasma-vault krdp krfb plasma-thunderbolt dragonplayer transmission-qt transmission-gtk pragha elisa kontact kmail kontrast plasma-welcome kaddressbook cosmic-player kdepim-runtime akonadi-server akregator korganizer epiphany decibels gnome-user-docs gnome-contacts gnome-maps gnome-weather gnome-calendar gnome-clocks gnome-music parole rhythmbox showtime kwalletmanager evolution evolution-common evolution-plugins evolution-ews totem exaile mpv juk)
-for pkg in "${PACKAGES_REMOVE[@]}"; do
+TO_REMOVE=(
+nano konqueror plasma-browser-integration plasma-vault
+krdp krfb plasma-thunderbolt dragonplayer transmission-qt
+transmission-gtk pragha elisa kontact kmail kontrast plasma-welcome
+kaddressbook cosmic-player kdepim-runtime akonadi-server akregator
+korganizer epiphany decibels gnome-user-docs gnome-contacts 
+gnome-maps gnome-weather gnome-calendar gnome-clocks gnome-music
+parole rhythmbox showtime kwalletmanager evolution evolution-common 
+evolution-plugins evolution-ews totem exaile mpv juk
+)
+for pkg in "${TO_REMOVE[@]}"; do
     sudo apt-get purge -yq "$pkg" 2>/dev/null || true
 done
 sudo apt-get autoremove -yq || true
