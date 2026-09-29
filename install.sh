@@ -343,7 +343,7 @@ nano konqueror plasma-browser-integration plasma-vault
 krdp krfb plasma-thunderbolt dragonplayer transmission-qt
 transmission-gtk pragha elisa kontact kmail kontrast plasma-welcome
 kaddressbook cosmic-player kdepim-runtime akonadi-server akregator
-korganizer epiphany decibels gnome-user-docs gnome-contacts 
+korganizer epiphany-browser decibels gnome-user-docs gnome-contacts 
 gnome-maps gnome-weather gnome-calendar gnome-clocks gnome-music
 parole rhythmbox showtime kwalletmanager evolution evolution-common 
 evolution-plugins evolution-ews totem exaile mpv juk
