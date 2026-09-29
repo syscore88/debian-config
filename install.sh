@@ -230,6 +230,25 @@ wait_for_apt() {
     done
 }
 
+pkg_installed() {
+    [[ "$(dpkg-query -W -f='${db:Status-Abbrev}' "$1" 2>/dev/null)" == ii* ]]
+}
+
+install_missing() {
+    local -a opts=() missing=()
+    local arg
+    for arg in "$@"; do
+        if [[ "$arg" == -* ]]; then
+            opts+=("$arg")
+        elif ! pkg_installed "$arg"; then
+            missing+=("$arg")
+        fi
+    done
+    if (( ${#missing[@]} > 0 )); then
+        sudo apt-get install "${opts[@]}" "${missing[@]}"
+    fi
+}
+
 disable_packagekit
 
 # ==========================================================
@@ -280,7 +299,7 @@ fi
 wait_for_apt
 sudo apt-get update -yq || true
 for pkg in curl wget gnupg pciutils dconf-cli; do
-    sudo apt-get install -yq "$pkg" || true
+    install_missing -yq "$pkg" || true
 done
 sudo mkdir -p /etc/apt/keyrings
 sudo chmod 755 /etc/apt/keyrings
@@ -321,10 +340,10 @@ fi
 show_progress 3 $TOTAL_STEPS "$MSG_PHASE_1"
 
 wait_for_apt
-sudo apt-get install -yq isenkram-cli firmware-linux firmware-linux-nonfree || true
+install_missing -yq isenkram-cli firmware-linux firmware-linux-nonfree || true
 sudo isenkram-autoinstall-firmware || true
 
-PACKAGES_REMOVE=(nano konqueror plasma-browser-integration plasma-vault krdp krfb plasma-thunderbolt dragonplayer transmission-qt transmission-gtk pragha elisa kontact kmail kontrast plasma-welcome kaddressbook cosmic-player kdepim-runtime akonadi-server akregator korganizer epiphany decibels gnome-user-docs gnome-contacts gnome-maps gnome-weather gnome-calendar gnome-clocks gnome-music parole rhythmbox showtime kwalletmanager evolution evolution-common evolution-plugins evolution-ews,totem)
+PACKAGES_REMOVE=(nano konqueror plasma-browser-integration plasma-vault krdp krfb plasma-thunderbolt dragonplayer transmission-qt transmission-gtk pragha elisa kontact kmail kontrast plasma-welcome kaddressbook cosmic-player kdepim-runtime akonadi-server akregator korganizer epiphany decibels gnome-user-docs gnome-contacts gnome-maps gnome-weather gnome-calendar gnome-clocks gnome-music parole rhythmbox showtime kwalletmanager evolution evolution-common evolution-plugins evolution-ews totem)
 for pkg in "${PACKAGES_REMOVE[@]}"; do
     sudo apt-get purge -yq "$pkg" 2>/dev/null || true
 done
@@ -384,7 +403,7 @@ PACKAGES_INSTALL=(
 )
 
 for pkg in "${PACKAGES_INSTALL[@]}"; do
-    sudo apt-get install -yq "$pkg" || FAILED_PACKAGES+=("$pkg")
+    install_missing -yq "$pkg" || FAILED_PACKAGES+=("$pkg")
 done
 
 sudo systemctl disable --now cdemu-daemon 2>/dev/null || true
@@ -402,25 +421,25 @@ for f in /etc/xdg/autostart/gcdemu.desktop /etc/xdg/autostart/cdemu.desktop /usr
 done
 pkill -f gcdemu 2>/dev/null || true
 
-if ! sudo apt-get install -yq telegram-desktop 2>/dev/null; then
+if ! pkg_installed telegram-desktop && ! sudo apt-get install -yq telegram-desktop 2>/dev/null; then
     sudo apt-get install -yq -t "${DEBIAN_CODENAME}-backports" telegram-desktop 2>/dev/null || true
 fi
 
 show_progress 5 $TOTAL_STEPS "$MSG_PHASE_2"
 
-sudo apt-get install -yq cabextract unzip wget >/dev/null 2>&1 || true
+install_missing -yq cabextract unzip wget >/dev/null 2>&1 || true
 if sudo curl -fsSLo /usr/local/bin/winetricks https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks && sudo chmod +x /usr/local/bin/winetricks; then
     :
 else
-    sudo apt-get install -yq winetricks || true
+    install_missing -yq winetricks || true
 fi
 
 show_progress 6 $TOTAL_STEPS "$MSG_PHASE_2"
 
 wait_for_apt
-sudo apt-get install -yq libpulse0:i386 libopenal1:i386 mangohud:i386 || true
+install_missing -yq libpulse0:i386 libopenal1:i386 mangohud:i386 || true
 
-if ! sudo apt-get install -yq wine wine64 wine32:i386; then
+if ! pkg_installed winehq-stable && ! install_missing -yq wine wine64 wine32:i386; then
     for pkg in wine wine64 wine32; do
         sudo apt-get purge -yq "$pkg" 2>/dev/null || true
     done
@@ -449,7 +468,7 @@ if command -v lspci &>/dev/null; then
     if [ -z "$VGA_INFO" ] || [ "$TOTAL_KNOWN" -eq 0 ]; then
         HYBRID_GPU=false
         wait_for_apt
-        sudo apt-get install -yq libgl1-mesa-dri:i386 mesa-vulkan-drivers:i386 || true
+        install_missing -yq libgl1-mesa-dri:i386 mesa-vulkan-drivers:i386 || true
     elif [ "$TOTAL_KNOWN" -ge 2 ]; then
         HYBRID_GPU=true
         log_info "Wykryto hybrydowy układ graficzny (HYBRID_GPU=$HYBRID_GPU): ${GPU_VENDORS[*]}" "Detected a hybrid GPU setup (HYBRID_GPU=$HYBRID_GPU): ${GPU_VENDORS[*]}"
@@ -458,7 +477,7 @@ if command -v lspci &>/dev/null; then
     fi
 else
     wait_for_apt
-    sudo apt-get install -yq libgl1-mesa-dri:i386 mesa-vulkan-drivers:i386 || true
+    install_missing -yq libgl1-mesa-dri:i386 mesa-vulkan-drivers:i386 || true
 fi
 
 MODULES_FILE="/etc/initramfs-tools/modules"
@@ -469,24 +488,24 @@ if [ "${#GPU_VENDORS[@]}" -gt 0 ]; then
     for vendor in "${GPU_VENDORS[@]}"; do
         case "$vendor" in
             "nvidia")
-                sudo apt-get install -yq libgl1-nvidia-glvnd-glx:i386 || true
+                install_missing -yq libgl1-nvidia-glvnd-glx:i386 || true
                 add_module "nvidia"
                 add_module "nvidia_modeset"
                 add_module "nvidia_uvm"
                 add_module "nvidia_drm"
                 ;;
             "amd")
-                sudo apt-get install -yq libgl1-mesa-dri:i386 mesa-vulkan-drivers:i386 || true
+                install_missing -yq libgl1-mesa-dri:i386 mesa-vulkan-drivers:i386 || true
                 add_module "amdgpu"
                 ;;
             "intel")
-                sudo apt-get install -yq libgl1-mesa-dri:i386 mesa-vulkan-drivers:i386 || true
+                install_missing -yq libgl1-mesa-dri:i386 mesa-vulkan-drivers:i386 || true
                 add_module "i915"
                 ;;
         esac
     done
 else
-    sudo apt-get install -yq libgl1-mesa-dri:i386 mesa-vulkan-drivers:i386 || true
+    install_missing -yq libgl1-mesa-dri:i386 mesa-vulkan-drivers:i386 || true
 fi
 sudo update-initramfs -u || true
 
@@ -494,16 +513,18 @@ show_progress 8 $TOTAL_STEPS "$MSG_PHASE_2"
 
 sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo || true
 sudo flatpak update --appstream || true
-sudo flatpak install -y flathub com.github.tchx84.Flatseal || true
-sudo flatpak install -y flathub it.mijorus.gearlever || true
+flatpak info com.github.tchx84.Flatseal &>/dev/null || sudo flatpak install -y flathub com.github.tchx84.Flatseal || true
+flatpak info it.mijorus.gearlever &>/dev/null || sudo flatpak install -y flathub it.mijorus.gearlever || true
 
 mkdir -p "$DEB_DIR"
 download_deb() { wget -q --timeout=30 -O "$3" "$2" || rm -f "$3"; }
 get_github_deb_url() { curl -sfL "https://api.github.com/repos/${1}/releases/latest" | grep "browser_download_url.*${2}" | cut -d '"' -f 4 || true; }
 
-download_deb "Discord" "https://discord.com/api/download?platform=linux&format=deb" "$DEB_DIR/discord.deb"
-OPENCODE_URL=$(get_github_deb_url "anomalyco/opencode" "opencode-desktop-linux-amd64\\.deb")
-FAUGUS_URL=$(get_github_deb_url "Faugus/faugus-launcher" "all\\.deb")
+pkg_installed discord || download_deb "Discord" "https://discord.com/api/download?platform=linux&format=deb" "$DEB_DIR/discord.deb"
+OPENCODE_URL=""
+FAUGUS_URL=""
+pkg_installed opencode-desktop || OPENCODE_URL=$(get_github_deb_url "anomalyco/opencode" "opencode-desktop-linux-amd64\\.deb")
+pkg_installed faugus-launcher || FAUGUS_URL=$(get_github_deb_url "Faugus/faugus-launcher" "all\\.deb")
 
 [[ -n "$OPENCODE_URL" ]] && download_deb "opencode-desktop" "$OPENCODE_URL" "$DEB_DIR/opencode-desktop.deb"
 [[ -n "$FAUGUS_URL" ]] && download_deb "Faugus Launcher" "$FAUGUS_URL" "$DEB_DIR/faugus.deb"
@@ -569,7 +590,7 @@ show_progress 9 $TOTAL_STEPS "$MSG_PHASE_3"
 restore_packagekit
 
 wait_for_apt
-sudo apt-get install -yq virt-manager qemu-system qemu-utils libvirt-daemon-system libvirt-clients ovmf dnsmasq bluetooth bluez bluez-firmware bluez-tools ufw || true
+install_missing -yq virt-manager qemu-system qemu-utils libvirt-daemon-system libvirt-clients ovmf dnsmasq bluetooth bluez bluez-firmware bluez-tools ufw || true
 
 if command -v dconf &>/dev/null; then
     dconf load /org/virt-manager/virt-manager/ <<'EOF'
