@@ -562,25 +562,8 @@ fi
 if [[ -n "$LSFG_URL" ]] && curl -fsSL -A "$LSFG_UA" -o "$LSFG_TMP/lsfg-vk.tar.xz" "$LSFG_URL" 2>/dev/null && tar -tf "$LSFG_TMP/lsfg-vk.tar.xz" &>/dev/null && mkdir -p "$HOME/.local" && tar -xf "$LSFG_TMP/lsfg-vk.tar.xz" -C "$HOME/.local"; then
     :
 else
-    log_warn "lsfg-vk: nie udało się pobrać gotowej paczki, buduję ze źródeł" \
-             "lsfg-vk: failed to download prebuilt package, building from source"
-    LSFG_SRC_DIR="$LSFG_TMP/lsfg-vk-src"
-    if git clone --depth=1 https://git.lsfg-vk.dev/lsfg-vk.git "$LSFG_SRC_DIR" && (
-            cd "$LSFG_SRC_DIR" &&
-            cmake -B build -G Ninja \
-                  -DCMAKE_BUILD_TYPE=Release \
-                  -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
-                  -DCMAKE_INSTALL_PREFIX=/usr/local \
-                  -DCMAKE_CXX_COMPILER=clang++ \
-                  -DLSFGVK_BUILD_UI=ON &&
-            cmake --build build &&
-            sudo cmake --install build
-        ); then
-        :
-    else
-        log_warn "lsfg-vk: budowa ze źródeł nie powiodła się, pomijam" \
-                 "lsfg-vk: build from source failed, skipping"
-    fi
+    log_warn "lsfg-vk: nie udało się pobrać gotowej paczki, pomijam" \
+             "lsfg-vk: failed to download prebuilt package, skipping"
 fi
 rm -rf "$LSFG_TMP"
 
