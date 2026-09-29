@@ -338,7 +338,7 @@ wait_for_apt
 install_missing -yq isenkram-cli firmware-linux firmware-linux-nonfree || true
 sudo isenkram-autoinstall-firmware || true
 
-PACKAGES_REMOVE=(nano konqueror plasma-browser-integration plasma-vault krdp krfb plasma-thunderbolt dragonplayer transmission-qt transmission-gtk pragha elisa kontact kmail kontrast plasma-welcome kaddressbook cosmic-player kdepim-runtime akonadi-server akregator korganizer epiphany decibels gnome-user-docs gnome-contacts gnome-maps gnome-weather gnome-calendar gnome-clocks gnome-music parole rhythmbox showtime kwalletmanager evolution evolution-common evolution-plugins evolution-ews totem exaile mpv)
+PACKAGES_REMOVE=(nano konqueror plasma-browser-integration plasma-vault krdp krfb plasma-thunderbolt dragonplayer transmission-qt transmission-gtk pragha elisa kontact kmail kontrast plasma-welcome kaddressbook cosmic-player kdepim-runtime akonadi-server akregator korganizer epiphany decibels gnome-user-docs gnome-contacts gnome-maps gnome-weather gnome-calendar gnome-clocks gnome-music parole rhythmbox showtime kwalletmanager evolution evolution-common evolution-plugins evolution-ews totem exaile mpv juk)
 for pkg in "${PACKAGES_REMOVE[@]}"; do
     sudo apt-get purge -yq "$pkg" 2>/dev/null || true
 done
@@ -347,9 +347,9 @@ sudo apt-get autoremove -yq || true
 rm -rf ~/.local/share/akonadi ~/.local/share/kmail2 ~/.local/share/local-mail ~/.local/share/contacts ~/.local/share/korganizer ~/.local/share/akregator ~/.local/share/kontact ~/.local/share/konqueror
 rm -rf ~/.config/akonadi* ~/.config/kmail* ~/.config/kontact* ~/.config/korganizer* ~/.config/kaddressbook* ~/.config/akregator* ~/.config/emailidentities ~/.config/mailtransports
 rm -rf ~/.cache/akonadi* ~/.cache/kmail* ~/.cache/kontact* ~/.cache/korganizer* ~/.cache/kaddressbook* ~/.cache/akregator* ~/.cache/konqueror*
-rm -rf ~/.local/share/{epiphany,decibels,gnome-user-docs,gnome-contacts,gnome-maps,gnome-weather,gnome-calendar,gnome-clocks,evolution,gnome-music,parole,rhythmbox,showtime,epiphany,decibels,dragonplayer,elisa,cosmic-player,transmission,pragha,totem,exaile,mpv}
-rm -rf ~/.config/{epiphany,decibels,gnome-user-docs,gnome-contacts,gnome-maps,gnome-weather,gnome-calendar,gnome-clocks,evolution,gnome-music,parole,rhythmbox,showtime,epiphany,decibels,dragonplayer,elisa,cosmic-player,transmission,pragha,totem,exaile,mpv}
-rm -rf ~/.cache/{epiphany,decibels,gnome-user-docs,gnome-contacts,gnome-maps,gnome-weather,gnome-calendar,gnome-clocks,evolution,gnome-music,parole,rhythmbox,showtime,epiphany,decibels,dragonplayer,elisa,cosmic-player,transmission,pragha,totem,exaile,mpv}
+rm -rf ~/.local/share/{epiphany,decibels,gnome-user-docs,gnome-contacts,gnome-maps,gnome-weather,gnome-calendar,gnome-clocks,evolution,gnome-music,parole,rhythmbox,showtime,epiphany,decibels,dragonplayer,elisa,cosmic-player,transmission,pragha,totem,exaile,mpv,juk}
+rm -rf ~/.config/{epiphany,decibels,gnome-user-docs,gnome-contacts,gnome-maps,gnome-weather,gnome-calendar,gnome-clocks,evolution,gnome-music,parole,rhythmbox,showtime,epiphany,decibels,dragonplayer,elisa,cosmic-player,transmission,pragha,totem,exaile,mpv,juk}
+rm -rf ~/.cache/{epiphany,decibels,gnome-user-docs,gnome-contacts,gnome-maps,gnome-weather,gnome-calendar,gnome-clocks,evolution,gnome-music,parole,rhythmbox,showtime,epiphany,decibels,dragonplayer,elisa,cosmic-player,transmission,pragha,totem,exaile,mpv,juk}
 command -v dconf &>/dev/null && dconf reset -f /org/gnome/evolution/ || true
 
 if dpkg -l plasma-desktop 2>/dev/null | grep -q '^ii' || dpkg -l plasma-workspace 2>/dev/null | grep -q '^ii'; then
@@ -389,7 +389,7 @@ PACKAGES_INSTALL=(
     python3-defusedxml python3-packaging python3-pip python3-tqdm vlc vlc-plugin-access-extra
     libayatana-appindicator3-1 gamemode vulkan-tools mangohud qmmp
     vkd3d-compiler gcc g++ clang llvm make cmake meson ninja-build just build-essential git
-    libgl1-mesa-dev qt6-tools-dev ghostwriter
+    libgl1-mesa-dev qt6-tools-dev ghostwriter qbittorrent
     gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly
     zsh zsh-syntax-highlighting zsh-autosuggestions pkg-config libvulkan-dev mesa-common-dev
     qt6-qpa-plugins libqt6quick6 qml6-module-qtquick-controls qml6-module-qtquick-layouts
