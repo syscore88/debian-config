@@ -340,7 +340,7 @@ sudo isenkram-autoinstall-firmware || true
 
 TO_REMOVE=(
 nano konqueror plasma-browser-integration plasma-vault
-krdp krfb plasma-thunderbolt dragonplayer transmission-qt
+krfb plasma-thunderbolt dragonplayer transmission-qt
 transmission-gtk pragha elisa kontact kmail kontrast plasma-welcome
 kaddressbook cosmic-player kdepim-runtime akonadi-server akregator
 korganizer epiphany-browser decibels gnome-user-docs gnome-contacts 
