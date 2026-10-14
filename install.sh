@@ -390,7 +390,7 @@ show_progress 4 $TOTAL_STEPS "$MSG_PHASE_2"
 wait_for_apt
 PACKAGES_INSTALL=(
     google-chrome-stable brave-origin
-    audacity gimp krita gmic mixxx kdenlive handbrake soundconverter
+    audacity gimp krita gmic gimp-gmic mixxx kdenlive handbrake soundconverter
     vim dconf-editor hunspell-pl fastfetch bleachbit profile-sync-daemon
     plymouth plymouth-themes unrar-free mc btrfs-progs exfatprogs ntfs-3g os-prober
     adb fastboot fsarchiver inxi pv rsync cdemu-daemon cdemu-client
@@ -651,7 +651,7 @@ show_progress 10 $TOTAL_STEPS "$MSG_PHASE_3"
 
 GRUB_CMDLINE_CURRENT="$(grep '^GRUB_CMDLINE_LINUX_DEFAULT=' /etc/default/grub 2>/dev/null | sed -E 's/^GRUB_CMDLINE_LINUX_DEFAULT="(.*)"$/\1/' || true)"
 GRUB_CMDLINE_NEW="$GRUB_CMDLINE_CURRENT"
-for param in quiet splash loglevel=3 systemd.show_status=false rd.udev.log_level=3 vt.global_cursor_default=0 plymouth.ignore-serial-consoles; do
+for param in quiet splash loglevel=3 systemd.show_status=false rd.udev.log_level=3 vt.global_cursor_default=0 plymouth.ignore-serial-consoles mitigations=off; do
     if [[ " $GRUB_CMDLINE_CURRENT " != *" $param "* ]]; then
         GRUB_CMDLINE_NEW="${GRUB_CMDLINE_NEW} ${param}"
     fi
