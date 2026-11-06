@@ -626,9 +626,26 @@ for svc in libvirtd virtqemud; do
     fi
 done
 
+LIBVIRT_NET="192.168.122.0/24"
+if ip -4 -o addr show 2>/dev/null | awk '$2 != "virbr0" && $4 ~ /^192\.168\.122\./ {found=1} END {exit !found}'; then
+    LIBVIRT_NET="192.168.150.0/24"
+fi
+
 if ! sudo virsh net-info default &>/dev/null; then
     sudo virsh net-define /usr/share/libvirt/networks/default.xml || true
 fi
+
+if [[ "$LIBVIRT_NET" == "192.168.150.0/24" ]]; then
+    LIBVIRT_NET_XML="$(mktemp)"
+    if sudo virsh net-dumpxml default --inactive 2>/dev/null > "$LIBVIRT_NET_XML" && grep -q '192\.168\.122\.' "$LIBVIRT_NET_XML"; then
+        sed -i 's/192\.168\.122\./192.168.150./g' "$LIBVIRT_NET_XML"
+        sudo virsh net-destroy default 2>/dev/null || true
+        sudo virsh net-undefine default 2>/dev/null || true
+        sudo virsh net-define "$LIBVIRT_NET_XML" || true
+    fi
+    rm -f "$LIBVIRT_NET_XML"
+fi
+
 sudo virsh net-start default 2>/dev/null || true
 sudo virsh net-autostart default || true
 
@@ -637,10 +654,13 @@ if command -v ufw &>/dev/null || [[ -x /usr/sbin/ufw ]]; then
     sudo ufw --force reset || true
     sudo ufw default deny incoming || true
     sudo ufw default allow outgoing || true
-    sudo ufw allow ssh || true
     sudo ufw allow in  on virbr0 || true
     sudo ufw allow out on virbr0 || true
-    sudo ufw allow from 192.168.122.0/24 || true
+    sudo ufw allow from "$LIBVIRT_NET" || true
+    if dpkg -s openssh-server &>/dev/null || [[ -x /usr/sbin/sshd ]] \
+        || systemctl is-active --quiet ssh 2>/dev/null || systemctl is-active --quiet sshd 2>/dev/null; then
+        sudo ufw allow ssh || true
+    fi
     sudo ufw --force enable || true
 fi
 
