@@ -342,7 +342,7 @@ sudo isenkram-autoinstall-firmware || true
 
 TO_REMOVE=(
 konqueror plasma-browser-integration plasma-vault
-krfb plasma-thunderbolt dragonplayer transmission-qt "evolution*"
+plasma-thunderbolt dragonplayer transmission-qt "evolution*"
 transmission-gtk pragha elisa kontact kmail kontrast plasma-welcome
 kaddressbook cosmic-player kdepim-runtime akonadi-server akregator
 korganizer epiphany-browser decibels gnome-user-docs gnome-contacts 
