@@ -690,6 +690,24 @@ sudo update-initramfs -u || true
 show_progress 11 $TOTAL_STEPS "$MSG_PHASE_3"
 
 sudo systemctl enable fstrim.timer || true
+wait_for_apt
+install_missing -yq systemd-zram-generator || true
+sudo tee /etc/systemd/zram-generator.conf >/dev/null <<'ZRAMEOF'
+[zram0]
+zram-size = min(ram / 2, 8192)
+compression-algorithm = zstd
+swap-priority = 100
+fs-type = swap
+ZRAMEOF
+sudo tee /etc/sysctl.d/99-zram.conf >/dev/null <<'SYSEOF'
+vm.swappiness = 180
+vm.watermark_boost_factor = 0
+vm.watermark_scale_factor = 125
+vm.page-cluster = 0
+SYSEOF
+sudo sysctl --system >/dev/null 2>&1 || true
+sudo systemctl daemon-reload || true
+sudo systemctl start /dev/zram0 2>/dev/null || sudo systemctl restart systemd-zram-setup@zram0.service 2>/dev/null || true
 sudo journalctl --vacuum-time=2d || true
 
 if command -v zsh &>/dev/null; then
