@@ -433,28 +433,14 @@ fi
 show_progress 5 $TOTAL_STEPS "$MSG_PHASE_2"
 
 install_missing -yq cabextract unzip wget >/dev/null 2>&1 || true
-if sudo curl -fsSLo /usr/local/bin/winetricks https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks && sudo chmod +x /usr/local/bin/winetricks; then
-    :
-else
-    install_missing -yq winetricks || true
-fi
+install_missing -yq winetricks || FAILED_PACKAGES+=("winetricks")
 
 show_progress 6 $TOTAL_STEPS "$MSG_PHASE_2"
 
 wait_for_apt
 install_missing -yq libpulse0:i386 libopenal1:i386 mangohud:i386 || true
 
-if ! pkg_installed winehq-stable && ! install_missing -yq wine wine64 wine32:i386; then
-    for pkg in wine wine64 wine32; do
-        sudo apt-get purge -yq "$pkg" 2>/dev/null || true
-    done
-    sudo mkdir -pm755 /etc/apt/keyrings
-    if sudo curl -fsSLo /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key && sudo curl -fsSLo /etc/apt/sources.list.d/winehq.sources https://dl.winehq.org/wine-builds/debian/dists/trixie/winehq-trixie.sources; then
-        wait_for_apt
-        sudo apt-get update -yq || true
-        sudo apt-get install -yq --install-recommends winehq-stable || true
-    fi
-fi
+install_missing -yq wine wine64 wine32:i386 || FAILED_PACKAGES+=("wine")
 
 show_progress 7 $TOTAL_STEPS "$MSG_PHASE_2"
 
