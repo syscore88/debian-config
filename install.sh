@@ -400,7 +400,7 @@ PACKAGES_INSTALL=(
     libayatana-appindicator3-1 gamemode vulkan-tools mangohud qmmp
     vkd3d-compiler gcc g++ clang llvm make cmake meson ninja-build just build-essential git
     libgl1-mesa-dev qt6-tools-dev ghostwriter qbittorrent gnome-disk-utility
-    gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly
+    gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav ffmpeg x264
     zsh zsh-syntax-highlighting zsh-autosuggestions pkg-config libvulkan-dev mesa-common-dev
     qt6-qpa-plugins libqt6quick6 qml6-module-qtquick-controls qml6-module-qtquick-layouts
     qml6-module-qtquick-window qml6-module-qtquick-dialogs qml6-module-qtqml-workerscript
