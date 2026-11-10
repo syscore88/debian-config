@@ -459,7 +459,7 @@ if command -v lspci &>/dev/null; then
     if [ -z "$VGA_INFO" ] || [ "$TOTAL_KNOWN" -eq 0 ]; then
         HYBRID_GPU=false
         wait_for_apt
-        install_missing -yq libgl1-mesa-dri:i386 mesa-vulkan-drivers:i386 || true
+        install_missing -yq libgl1-mesa-dri:amd64 libgl1-mesa-dri:i386 mesa-vulkan-drivers:amd64 mesa-vulkan-drivers:i386 libglx-mesa0:amd64 libglx-mesa0:i386 || true
     elif [ "$TOTAL_KNOWN" -ge 2 ]; then
         HYBRID_GPU=true
         log_info "Wykryto hybrydowy układ graficzny (HYBRID_GPU=$HYBRID_GPU): ${GPU_VENDORS[*]}" "Detected a hybrid GPU setup (HYBRID_GPU=$HYBRID_GPU): ${GPU_VENDORS[*]}"
@@ -468,7 +468,7 @@ if command -v lspci &>/dev/null; then
     fi
 else
     wait_for_apt
-    install_missing -yq libgl1-mesa-dri:i386 mesa-vulkan-drivers:i386 || true
+    install_missing -yq libgl1-mesa-dri:amd64 libgl1-mesa-dri:i386 mesa-vulkan-drivers:amd64 mesa-vulkan-drivers:i386 libglx-mesa0:amd64 libglx-mesa0:i386 || true
 fi
 
 MODULES_FILE="/etc/initramfs-tools/modules"
@@ -480,23 +480,26 @@ if [ "${#GPU_VENDORS[@]}" -gt 0 ]; then
         case "$vendor" in
             "nvidia")
                 install_missing -yq libgl1-nvidia-glvnd-glx:i386 || true
+                install_missing -yq nvidia-vaapi-driver:amd64 nvidia-vaapi-driver:i386 || true
                 add_module "nvidia"
                 add_module "nvidia_modeset"
                 add_module "nvidia_uvm"
                 add_module "nvidia_drm"
                 ;;
             "amd")
-                install_missing -yq libgl1-mesa-dri:i386 mesa-vulkan-drivers:i386 || true
+                install_missing -yq libgl1-mesa-dri:amd64 libgl1-mesa-dri:i386 mesa-vulkan-drivers:amd64 mesa-vulkan-drivers:i386 libglx-mesa0:amd64 libglx-mesa0:i386 || true
+                install_missing -yq mesa-va-drivers:amd64 mesa-va-drivers:i386 || true
                 add_module "amdgpu"
                 ;;
             "intel")
-                install_missing -yq libgl1-mesa-dri:i386 mesa-vulkan-drivers:i386 || true
+                install_missing -yq libgl1-mesa-dri:amd64 libgl1-mesa-dri:i386 mesa-vulkan-drivers:amd64 mesa-vulkan-drivers:i386 libglx-mesa0:amd64 libglx-mesa0:i386 || true
+                install_missing -yq intel-media-va-driver-non-free:amd64 intel-media-va-driver-non-free:i386 || true
                 add_module "i915"
                 ;;
         esac
     done
 else
-    install_missing -yq libgl1-mesa-dri:i386 mesa-vulkan-drivers:i386 || true
+    install_missing -yq libgl1-mesa-dri:amd64 libgl1-mesa-dri:i386 mesa-vulkan-drivers:amd64 mesa-vulkan-drivers:i386 libglx-mesa0:amd64 libglx-mesa0:i386 || true
 fi
 sudo update-initramfs -u || true
 
