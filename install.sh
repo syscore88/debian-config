@@ -252,7 +252,7 @@ MESA_PKGS=(
     libglx-mesa0:amd64 libglx-mesa0:i386
 )
 
-MESA_OPENCL_PKGS=(mesa-opencl-icd:amd64 mesa-opencl-icd:i386)
+MESA_OPENCL_PKGS=(mesa-opencl-icd:amd64)
 
 install_each() {
     local pkg f
