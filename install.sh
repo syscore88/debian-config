@@ -252,6 +252,8 @@ MESA_PKGS=(
     libglx-mesa0:amd64 libglx-mesa0:i386
 )
 
+MESA_OPENCL_PKGS=(mesa-opencl-icd:amd64 mesa-opencl-icd:i386)
+
 install_each() {
     local pkg f
     for pkg in "$@"; do
@@ -478,6 +480,7 @@ if command -v lspci &>/dev/null; then
         HYBRID_GPU=false
         wait_for_apt
         install_each "${MESA_PKGS[@]}"
+        install_each "${MESA_OPENCL_PKGS[@]}"
     elif [ "$TOTAL_KNOWN" -ge 2 ]; then
         HYBRID_GPU=true
         log_info "Wykryto hybrydowy układ graficzny (HYBRID_GPU=$HYBRID_GPU): ${GPU_VENDORS[*]}" "Detected a hybrid GPU setup (HYBRID_GPU=$HYBRID_GPU): ${GPU_VENDORS[*]}"
@@ -487,6 +490,7 @@ if command -v lspci &>/dev/null; then
 else
     wait_for_apt
     install_each "${MESA_PKGS[@]}"
+    install_each "${MESA_OPENCL_PKGS[@]}"
 fi
 
 MODULES_FILE="/etc/initramfs-tools/modules"
@@ -499,6 +503,7 @@ if [ "${#GPU_VENDORS[@]}" -gt 0 ]; then
             "nvidia")
                 install_each libgl1-nvidia-glvnd-glx:i386
                 install_each nvidia-vaapi-driver:amd64 nvidia-vaapi-driver:i386
+                install_each nvidia-opencl-icd:amd64 nvidia-opencl-icd:i386
                 add_module "nvidia"
                 add_module "nvidia_modeset"
                 add_module "nvidia_uvm"
@@ -507,17 +512,20 @@ if [ "${#GPU_VENDORS[@]}" -gt 0 ]; then
             "amd")
                 install_each "${MESA_PKGS[@]}"
                 install_each mesa-va-drivers:amd64 mesa-va-drivers:i386
+                install_each "${MESA_OPENCL_PKGS[@]}"
                 add_module "amdgpu"
                 ;;
             "intel")
                 install_each "${MESA_PKGS[@]}"
                 install_each intel-media-va-driver-non-free:amd64 intel-media-va-driver-non-free:i386
+                install_each intel-opencl-icd:amd64
                 add_module "i915"
                 ;;
         esac
     done
 else
     install_each "${MESA_PKGS[@]}"
+    install_each "${MESA_OPENCL_PKGS[@]}"
 fi
 sudo update-initramfs -u || true
 
