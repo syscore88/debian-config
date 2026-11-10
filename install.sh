@@ -503,7 +503,7 @@ if [ "${#GPU_VENDORS[@]}" -gt 0 ]; then
             "nvidia")
                 install_each libgl1-nvidia-glvnd-glx:i386
                 install_each nvidia-vaapi-driver:amd64 nvidia-vaapi-driver:i386
-                install_each nvidia-opencl-icd:amd64 nvidia-opencl-icd:i386
+                install_each nvidia-opencl-icd:amd64 
                 add_module "nvidia"
                 add_module "nvidia_modeset"
                 add_module "nvidia_uvm"
