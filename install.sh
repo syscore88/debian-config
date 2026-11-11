@@ -290,7 +290,7 @@ fi
 
 wait_for_apt
 sudo apt-get update -yq || true
-install_apt_pkgs curl wget gnupg pciutils dconf-cli
+install_apt_pkgs curl wget gnupg pciutils dconf-cli xz-utils
 
 GPU_TYPE="unknown"
 HYBRID_GPU=false
@@ -440,7 +440,7 @@ SYSTEM_PKGS=(
     gcc g++ clang llvm make cmake meson ninja-build just build-essential git
     qt6-tools-dev ghostwriter qbittorrent gnome-disk-utility
     zsh zsh-syntax-highlighting zsh-autosuggestions pkg-config
-    cabextract unzip wget winetricks wine wine64
+    cabextract unzip wget xz-utils winetricks wine wine64
     isenkram-cli firmware-linux-nonfree systemd-zram-generator
     virt-manager qemu-system qemu-utils libvirt-daemon-system libvirt-clients
     qt6-qpa-plugins libqt6quick6 qml6-module-qtquick-controls
@@ -484,7 +484,8 @@ if ! pkg_installed telegram-desktop; then
     fi
 fi
 
-sudo isenkram-autoinstall-firmware || FAILED_PACKAGES+=("isenkram-firmware")
+wait_for_apt
+sudo isenkram-autoinstall-firmware || true
 sudo depmod -a &>/dev/null || true
 
 sudo systemctl disable --now cdemu-daemon 2>/dev/null || true
@@ -552,7 +553,7 @@ rm -rf "$DEB_DIR"
 
 LSFG_TMP="$(mktemp -d)"
 LSFG_UA="Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0"
-LSFG_HTML="$(curl -fsSL -A "$LSFG_UA" -e "https://builds.lsfg-vk.dev/" "https://builds.lsfg-vk.dev/" 2>/dev/null || true)"
+LSFG_HTML="$(curl -fsSL -A "$LSFG_UA" -e "https://builds.lsfg-vk.dev/" "https://builds.lsfg-vk.dev/" || true)"
 LSFG_LINKS="$( { printf '%s' "$LSFG_HTML" | grep -oiE 'href="[^"]+\.tar\.xz"' | sed -E 's/^href="//I; s/"$//'; } || true )
 $( { printf '%s' "$LSFG_HTML" | grep -oiE 'https?://[^"'"'"'<>[:space:]]+\.tar\.xz'; } || true )"
 LSFG_URL="$(printf '%s\n' "$LSFG_LINKS" | grep -iE '(^|/)lsfg-vk-[0-9]+(\.[0-9]+)*\.tar\.xz$' | sort -Vu | tail -n1 || true)"
@@ -565,7 +566,7 @@ if [[ -n "$LSFG_URL" && "$LSFG_URL" != http* ]]; then
         *)  LSFG_URL="https://builds.lsfg-vk.dev/${LSFG_URL}" ;;
     esac
 fi
-if [[ -n "$LSFG_URL" ]] && curl -fsSL -A "$LSFG_UA" -o "$LSFG_TMP/lsfg-vk.tar.xz" "$LSFG_URL" 2>/dev/null && tar -tf "$LSFG_TMP/lsfg-vk.tar.xz" &>/dev/null && mkdir -p "$HOME/.local" && tar -xf "$LSFG_TMP/lsfg-vk.tar.xz" -C "$HOME/.local"; then
+if [[ -n "$LSFG_URL" ]] && curl -fsSL -A "$LSFG_UA" -o "$LSFG_TMP/lsfg-vk.tar.xz" "$LSFG_URL" && tar -tf "$LSFG_TMP/lsfg-vk.tar.xz" &>/dev/null && mkdir -p "$HOME/.local" && tar -xf "$LSFG_TMP/lsfg-vk.tar.xz" -C "$HOME/.local"; then
     :
 else
     FAILED_PACKAGES+=("lsfg-vk")
