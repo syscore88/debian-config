@@ -290,12 +290,14 @@ if [[ -f /etc/apt/sources.list ]]; then
     if ! grep -q "non-free-firmware" /etc/apt/sources.list; then
         sudo sed -i -E 's/ main($| )/ main contrib non-free non-free-firmware\1/' /etc/apt/sources.list || true
     fi
+    grep -qE '^[^#]*[[:space:]]contrib([[:space:]]|$)' /etc/apt/sources.list || sudo sed -i -E '/^deb / s/ main($| )/ main contrib\1/' /etc/apt/sources.list || true
 fi
 
 if [[ -f /etc/apt/sources.list.d/debian.sources ]]; then
     if ! grep -q "non-free-firmware" /etc/apt/sources.list.d/debian.sources; then
         sudo sed -i -E '/^Components:/ s/$/ contrib non-free non-free-firmware/' /etc/apt/sources.list.d/debian.sources || true
     fi
+    grep -qE '^Components:.*[[:space:]]contrib([[:space:]]|$)' /etc/apt/sources.list.d/debian.sources || sudo sed -i -E '/^Components:/ s/$/ contrib/' /etc/apt/sources.list.d/debian.sources || true
 fi
 
 DEBIAN_CODENAME="$(. /etc/os-release 2>/dev/null && echo "$VERSION_CODENAME")"
