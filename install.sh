@@ -1,6 +1,6 @@
 #!/bin/bash
 # =========================================
-# KOMPLEKSOWY SKRYPT KONFIGURACYJNY Debian
+# KOMPLEKSOWY SKRYPT KONFIGURACYJNY Debian   
 # =========================================
 
 set -Eeuo pipefail
