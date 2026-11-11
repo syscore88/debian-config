@@ -590,7 +590,7 @@ show_progress 9 $TOTAL_STEPS "$MSG_PHASE_3"
 restore_packagekit
 
 wait_for_apt
-install_missing -yq virt-manager qemu-system qemu-utils libvirt-daemon-system libvirt-clients ovmf dnsmasq bluetooth bluez bluez-firmware bluez-tools ufw || true
+install_missing -yq virt-manager qemu-system qemu-utils libvirt-daemon-system libvirt-clients || true
 
 if command -v dconf &>/dev/null; then
     dconf load /org/virt-manager/virt-manager/ <<'EOF'
