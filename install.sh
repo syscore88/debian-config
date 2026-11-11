@@ -553,47 +553,23 @@ rm -rf "$DEB_DIR"
 
 LSFG_TMP="$(mktemp -d)"
 LSFG_UA="Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0"
-LSFG_BASE="https://builds.lsfg-vk.dev"
-LSFG_URL=""
-
-lsfg_pick_stable() {
-    grep -oiE 'href="[^"]*\.tar\.xz"' | sed -E 's/^href="//I; s/"$//' \
-        | grep -iE '(^|/)lsfg-vk-[0-9]+(\.[0-9]+)*\.tar\.xz$' | sort -Vu | tail -n1
-}
-
-echo "lsfg-vk: pobieram listę buildów z $LSFG_BASE"
-LSFG_HTML="$(curl -fsSL -A "$LSFG_UA" -e "$LSFG_BASE/" "$LSFG_BASE/" || true)"
-if [[ -z "$LSFG_HTML" ]]; then
-    echo "lsfg-vk: strona builds nie zwróciła treści (blokada / brak sieci / DNS?)"
-else
-    echo "lsfg-vk: początek pobranego HTML (do diagnostyki):"
-    printf '%s' "$LSFG_HTML" | head -c 1500
-    echo
+LSFG_HTML="$(curl -fsSL -A "$LSFG_UA" -e "https://builds.lsfg-vk.dev/" "https://builds.lsfg-vk.dev/" || true)"
+LSFG_LINKS="$( { printf '%s' "$LSFG_HTML" | grep -oiE 'href="[^"]+\.tar\.xz"' | sed -E 's/^href="//I; s/"$//'; } || true )
+$( { printf '%s' "$LSFG_HTML" | grep -oiE 'https?://[^"'"'"'<>[:space:]]+\.tar\.xz'; } || true )"
+LSFG_URL="$(printf '%s\n' "$LSFG_LINKS" | grep -iE '(^|/)lsfg-vk-[0-9]+(\.[0-9]+)*\.tar\.xz$' | sort -Vu | tail -n1 || true)"
+if [[ -z "$LSFG_URL" ]]; then
+    LSFG_URL="$(printf '%s\n' "$LSFG_LINKS" | head -n1 || true)"
 fi
-
-LSFG_FILE="$(printf '%s' "$LSFG_HTML" | lsfg_pick_stable || true)"
-if [[ -n "$LSFG_FILE" ]]; then
-    case "$LSFG_FILE" in
-        http*) LSFG_URL="$LSFG_FILE" ;;
-        /*)    LSFG_URL="${LSFG_BASE}${LSFG_FILE}" ;;
-        *)     LSFG_URL="${LSFG_BASE}/${LSFG_FILE}" ;;
+if [[ -n "$LSFG_URL" && "$LSFG_URL" != http* ]]; then
+    case "$LSFG_URL" in
+        /*) LSFG_URL="https://builds.lsfg-vk.dev${LSFG_URL}" ;;
+        *)  LSFG_URL="https://builds.lsfg-vk.dev/${LSFG_URL}" ;;
     esac
 fi
-
-echo "lsfg-vk: wybrany URL: ${LSFG_URL:-<brak>}"
-if [[ -z "$LSFG_URL" ]]; then
-    FAILED_PACKAGES+=("lsfg-vk(no-url)")
-elif ! curl -fsSL -A "$LSFG_UA" -e "$LSFG_BASE/" -o "$LSFG_TMP/lsfg-vk.tar.xz" "$LSFG_URL"; then
-    echo "lsfg-vk: pobieranie nie powiodło się: $LSFG_URL"
-    FAILED_PACKAGES+=("lsfg-vk(download)")
-elif ! tar -tf "$LSFG_TMP/lsfg-vk.tar.xz" &>/dev/null; then
-    echo "lsfg-vk: pobrany plik nie jest poprawnym tar.xz"
-    FAILED_PACKAGES+=("lsfg-vk(archive)")
-elif ! { mkdir -p "$HOME/.local" && tar -xf "$LSFG_TMP/lsfg-vk.tar.xz" -C "$HOME/.local"; }; then
-    echo "lsfg-vk: rozpakowanie do ~/.local nie powiodło się"
-    FAILED_PACKAGES+=("lsfg-vk(extract)")
+if [[ -n "$LSFG_URL" ]] && curl -fsSL -A "$LSFG_UA" -o "$LSFG_TMP/lsfg-vk.tar.xz" "$LSFG_URL" && tar -tf "$LSFG_TMP/lsfg-vk.tar.xz" &>/dev/null && mkdir -p "$HOME/.local" && tar -xf "$LSFG_TMP/lsfg-vk.tar.xz" -C "$HOME/.local"; then
+    :
 else
-    echo "lsfg-vk: zainstalowano z $LSFG_URL"
+    FAILED_PACKAGES+=("lsfg-vk")
 fi
 rm -rf "$LSFG_TMP"
 
