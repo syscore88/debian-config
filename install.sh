@@ -1,6 +1,6 @@
 #!/bin/bash
 # =========================================
-# KOMPLEKSOWY SKRYPT KONFIGURACYJNY Debian   
+# KOMPLEKSOWY SKRYPT KONFIGURACYJNY Debian
 # =========================================
 
 set -Eeuo pipefail
@@ -443,10 +443,17 @@ SYSTEM_PKGS=(
     cabextract unzip wget xz-utils winetricks wine wine64
     isenkram-cli firmware-linux-nonfree systemd-zram-generator
     virt-manager qemu-system qemu-utils libvirt-daemon-system libvirt-clients
-    qt6-qpa-plugins libqt6quick6 qml6-module-qtquick-controls
+    libxcb1 qt6-qpa-plugins qt6-wayland qt6-svg-plugins
+    libqt6core6t64 libqt6gui6 libqt6widgets6 libqt6svg6
+    libqt6qml6 libqt6qmlmodels6 libqt6qmlworkerscript6
+    libqt6quick6 libqt6quickcontrols2-6 libqt6quickdialogs2-6
+    libqt6quicklayouts6 libqt6quicktemplates2-6
+    qml6-module-qtquick qml6-module-qtquick-controls
     qml6-module-qtquick-layouts qml6-module-qtquick-window
-    qml6-module-qtquick-dialogs qml6-module-qtqml-workerscript
-    qml6-module-qtquick-templates qml6-module-qt-labs-folderlistmodel
+    qml6-module-qtquick-dialogs qml6-module-qtquick-templates
+    qml6-module-qtqml qml6-module-qtqml-models qml6-module-qtqml-workerscript
+    qml6-module-qtcore qml6-module-qt-labs-folderlistmodel
+    qml6-module-qt-labs-platform qml6-module-qt-labs-settings
 )
 
 PKGS_32BIT=(
@@ -469,7 +476,7 @@ for vendor in "${GPU_VENDORS[@]}"; do
     esac
 done
 
-if [ "${#GPU_VENDORS[@]}" -gt 0 ]; then
+if [ "${#SYSTEM_PKGS[@]}" -gt 0 ]; then
     readarray -t SYSTEM_PKGS < <(printf '%s\n' "${SYSTEM_PKGS[@]}" | awk '!seen[$0]++')
 fi
 
@@ -553,22 +560,54 @@ rm -rf "$DEB_DIR"
 
 LSFG_TMP="$(mktemp -d)"
 LSFG_UA="Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0"
-LSFG_HTML="$(curl -fsSL -A "$LSFG_UA" -e "https://builds.lsfg-vk.dev/" "https://builds.lsfg-vk.dev/" || true)"
-LSFG_LINKS="$( { printf '%s' "$LSFG_HTML" | grep -oiE 'href="[^"]+\.tar\.xz"' | sed -E 's/^href="//I; s/"$//'; } || true )
-$( { printf '%s' "$LSFG_HTML" | grep -oiE 'https?://[^"'"'"'<>[:space:]]+\.tar\.xz'; } || true )"
-LSFG_URL="$(printf '%s\n' "$LSFG_LINKS" | grep -iE '(^|/)lsfg-vk-[0-9]+(\.[0-9]+)*\.tar\.xz$' | sort -Vu | tail -n1 || true)"
-if [[ -z "$LSFG_URL" ]]; then
-    LSFG_URL="$(printf '%s\n' "$LSFG_LINKS" | head -n1 || true)"
+LSFG_BASE="https://builds.lsfg-vk.dev"
+LSFG_INSTALLED=0
+LSFG_URLS=()
+
+if LSFG_HTML="$(curl -fsSL --retry 3 --retry-delay 2 -A "$LSFG_UA" -e "$LSFG_BASE/" "$LSFG_BASE/" 2>/dev/null)"; then
+    mapfile -t LSFG_CANDIDATES < <(
+        {
+            printf '%s' "$LSFG_HTML" | grep -oiE '(href|src)=["'\''][^"'\'']*lsfg-vk-[0-9]+(\.[0-9]+)*(-[A-Za-z0-9._-]+)?\.tar\.xz["'\'']' | sed -E 's/^(href|src)=["'\'']//I; s/["'\'']$//'
+            printf '%s' "$LSFG_HTML" | grep -oiE '(https?://[^"'\'' <>[:space:]]+/)?lsfg-vk-[0-9]+(\.[0-9]+)*(-[A-Za-z0-9._-]+)?\.tar\.xz'
+        } | awk 'NF && !seen[$0]++' | sort -rV || true
+    )
+    for c in "${LSFG_CANDIDATES[@]}"; do
+        [[ -z "$c" ]] && continue
+        case "$c" in
+            http*://*) u="$c" ;;
+            //*)       u="https:$c" ;;
+            /*)        u="$LSFG_BASE$c" ;;
+            *)         u="$LSFG_BASE/${c#./}" ;;
+        esac
+        LSFG_URLS+=("$u")
+    done
 fi
-if [[ -n "$LSFG_URL" && "$LSFG_URL" != http* ]]; then
-    case "$LSFG_URL" in
-        /*) LSFG_URL="https://builds.lsfg-vk.dev${LSFG_URL}" ;;
-        *)  LSFG_URL="https://builds.lsfg-vk.dev/${LSFG_URL}" ;;
-    esac
-fi
-if [[ -n "$LSFG_URL" ]] && curl -fsSL -A "$LSFG_UA" -o "$LSFG_TMP/lsfg-vk.tar.xz" "$LSFG_URL" && tar -tf "$LSFG_TMP/lsfg-vk.tar.xz" &>/dev/null && mkdir -p "$HOME/.local" && tar -xf "$LSFG_TMP/lsfg-vk.tar.xz" -C "$HOME/.local"; then
-    :
-else
+
+for LSFG_URL in "${LSFG_URLS[@]}"; do
+    rm -f "$LSFG_TMP/lsfg-vk.tar.xz"
+    if curl -fsSL --retry 3 --retry-delay 2 -A "$LSFG_UA" -e "$LSFG_BASE/" -o "$LSFG_TMP/lsfg-vk.tar.xz" "$LSFG_URL" 2>/dev/null; then
+        if LSFG_TAR_LIST="$(tar -tf "$LSFG_TMP/lsfg-vk.tar.xz" 2>/dev/null)"; then
+            if printf '%s\n' "$LSFG_TAR_LIST" | grep -qE '(^|/)bin/lsfg-vk-(ui|cli)$'; then
+                BIN_LINE="$(printf '%s\n' "$LSFG_TAR_LIST" | grep -E '(^|/)bin/lsfg-vk-(ui|cli)$' | head -n 1)"
+                PREFIX="${BIN_LINE%bin/lsfg-vk-*}"
+                PREFIX="${PREFIX#./}"
+                STRIP=0
+                if [[ -n "$PREFIX" ]]; then
+                    STRIP="$(awk -F'/' '{print NF-1}' <<< "$PREFIX")"
+                fi
+                mkdir -p "$HOME/.local"
+                if tar -xf "$LSFG_TMP/lsfg-vk.tar.xz" --strip-components="$STRIP" -C "$HOME/.local" 2>/dev/null; then
+                    if [[ -x "$HOME/.local/bin/lsfg-vk-ui" || -x "$HOME/.local/bin/lsfg-vk-cli" ]]; then
+                        LSFG_INSTALLED=1
+                        break
+                    fi
+                fi
+            fi
+        fi
+    fi
+done
+
+if [[ "$LSFG_INSTALLED" -eq 0 ]]; then
     FAILED_PACKAGES+=("lsfg-vk")
 fi
 rm -rf "$LSFG_TMP"
