@@ -443,17 +443,10 @@ SYSTEM_PKGS=(
     cabextract unzip wget xz-utils winetricks wine wine64
     isenkram-cli firmware-linux-nonfree systemd-zram-generator
     virt-manager qemu-system qemu-utils libvirt-daemon-system libvirt-clients
-    libxcb1 qt6-qpa-plugins qt6-wayland qt6-svg-plugins
-    libqt6core6t64 libqt6gui6 libqt6widgets6 libqt6svg6
-    libqt6qml6 libqt6qmlmodels6 libqt6qmlworkerscript6
-    libqt6quick6 libqt6quickcontrols2-6 libqt6quickdialogs2-6
-    libqt6quicklayouts6 libqt6quicktemplates2-6
-    qml6-module-qtquick qml6-module-qtquick-controls
+    qt6-qpa-plugins libqt6quick6 qml6-module-qtquick-controls
     qml6-module-qtquick-layouts qml6-module-qtquick-window
-    qml6-module-qtquick-dialogs qml6-module-qtquick-templates
-    qml6-module-qtqml qml6-module-qtqml-models qml6-module-qtqml-workerscript
-    qml6-module-qtcore qml6-module-qt-labs-folderlistmodel
-    qml6-module-qt-labs-platform qml6-module-qt-labs-settings
+    qml6-module-qtquick-dialogs qml6-module-qtqml-workerscript
+    qml6-module-qtquick-templates qml6-module-qt-labs-folderlistmodel
 )
 
 PKGS_32BIT=(
