@@ -22,26 +22,14 @@ SCRIPT_LANG=$(detect_lang)
 if [ "$SCRIPT_LANG" = "pl" ]; then
     MSG_TITLE="                  KONSERWACJA SYSTEMU                  "
     MSG_ASK_PASS="Proszę podać hasło administratora (sudo):"
-    MSG_PHASE_UPDATE="[1/2] Aktualizacja i optymalizacja..."
-    MSG_PKGS_UPDATED="Aktualizowane pakiety:"
-    MSG_PKGS_NONE="Brak pakietów do aktualizacji (system aktualny)."
-    MSG_FLATPAK_UPDATED="Aktualizowane pakiety Flatpak:"
-    MSG_PHASE_CLEAN_SYS="[2/2] Czyszczenie systemowe..."
+    MSG_PHASE_CLEAN_SYS="[1/1] Czyszczenie systemowe..."
     MSG_DONE="             KONSERWACJA SYSTEMU ZAKOŃCZONA!           "
-    MSG_RESTART_WARN="UWAGA: Zalecany jest restart komputera"
-    MSG_NO_RESTART="Restart systemu nie jest aktualnie wymagany."
     MSG_PRESS_ENTER="Naciśnij Enter, aby zamknąć okno..."
 else
     MSG_TITLE="                   SYSTEM MAINTENANCE                   "
     MSG_ASK_PASS="Please enter the administrator (sudo) password:"
-    MSG_PHASE_UPDATE="[1/2] Updates and optimization..."
-    MSG_PKGS_UPDATED="Updating packages:"
-    MSG_PKGS_NONE="No packages to update (system is up to date)."
-    MSG_FLATPAK_UPDATED="Updating Flatpak packages:"
-    MSG_PHASE_CLEAN_SYS="[2/2] System cleanup..."
+    MSG_PHASE_CLEAN_SYS="[1/1] System cleanup..."
     MSG_DONE="             SYSTEM MAINTENANCE COMPLETE!           "
-    MSG_RESTART_WARN="WARNING: A system restart is recommended"
-    MSG_NO_RESTART="A system restart is not currently required."
     MSG_PRESS_ENTER="Press Enter to close this window..."
 fi
 
@@ -103,17 +91,6 @@ show_progress() {
 
     printf "\r\033[K[\033[1;32m%s\033[0;90m%s\033[0m] %3d%% | \033[1;36m%s\033[0m" "$bar_filled" "$bar_empty" "$percent" "$msg" >&3
     cp -f "$TMP_LOG" "$LOG_FILE" 2>/dev/null || true
-}
-
-print_pkg_list() {
-    local title="$1"
-    local list="$2"
-    [ -z "$list" ] && return
-    printf "\r\033[K" >&3
-    echo -e "${INFO}${title}${NC}" >&3
-    while IFS= read -r pkg; do
-        [ -n "$pkg" ] && echo -e "  ${SUCCESS}•${NC} $pkg" >&3
-    done <<< "$list"
 }
 
 CURRENT_USER=$(whoami)
@@ -195,49 +172,26 @@ if ! sudo -n true 2>/dev/null; then
     exit 1
 fi
 
-REBOOT_NEEDED=false
-FWUPD_RESTART_NEEDED=false
-TOTAL_STEPS=20
+TOTAL_STEPS=17
 STEP=0
-show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_UPDATE"
+show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 # ---------------------------------------------------------------
-# PHASE: UPDATE
+# PHASE: DESKTOP EXTENSIONS (GNOME / CINNAMON)
 # ---------------------------------------------------------------
-sudo env LC_ALL=C DEBIAN_FRONTEND=noninteractive apt-get update 2>&1 | grep -v "does not support architecture\|Skipping acquire of configured file"
-
-APT_UPGRADABLE=$(LC_ALL=C apt list --upgradable 2>/dev/null | tail -n +2)
-
-APT_OUTPUT=$(sudo env LC_ALL=C DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -y 2>&1)
-echo "$APT_OUTPUT"
-
-PKG_LIST=$(echo "$APT_UPGRADABLE" | sed -nE 's#^([^/]+)/[^ ]+ +([^ ]+) .*\[upgradable from: ([^]]+)\].*#\1: \3 → \2#p')
-if [ -n "$PKG_LIST" ]; then
-    print_pkg_list "$MSG_PKGS_UPDATED" "$PKG_LIST"
-else
-    printf "\r\033[K" >&3
-    echo -e "${INFO}${MSG_PKGS_NONE}${NC}" >&3
-fi
-
-STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_UPDATE"
-
 if command -v gext &> /dev/null; then
     gext update
 fi
-STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_UPDATE"
+STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 if command -v cinnamon-spice-updater &> /dev/null; then
     cinnamon-spice-updater --update-all
 fi
-STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_UPDATE"
+STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 if command -v fwupdmgr &> /dev/null; then
     sudo fwupdmgr refresh --force
-    FWUPD_OUT=$(sudo fwupdmgr update -y 2>&1)
-    echo "$FWUPD_OUT"
-    if echo "$FWUPD_OUT" | grep -qiE "restart|reboot"; then
-        FWUPD_RESTART_NEEDED=true
-    fi
+    sudo fwupdmgr update -y
 fi
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
@@ -262,18 +216,6 @@ sudo find /etc/apt/sources.list.d/ -type f -name "*.save" -delete
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 if command -v flatpak &> /dev/null; then
-    FLATPAK_BEFORE=$(flatpak list --system --app --columns=application,version 2>/dev/null)
-
-    sudo flatpak update --system -y
-
-    FLATPAK_AFTER=$(flatpak list --system --app --columns=application,version 2>/dev/null)
-
-    FLATPAK_PKGS=$(join -t$'\t' -j1 \
-        <(echo "$FLATPAK_BEFORE" | sort -t$'\t' -k1,1) \
-        <(echo "$FLATPAK_AFTER" | sort -t$'\t' -k1,1) 2>/dev/null \
-        | awk -F'\t' '$2 != $3 { printf "%s: %s → %s\n", $1, ($2==""?"?":$2), ($3==""?"?":$3) }')
-    print_pkg_list "$MSG_FLATPAK_UPDATED" "$FLATPAK_PKGS"
-
     sudo flatpak uninstall --unused --system -y
     sudo flatpak uninstall --unused --delete-data -y 2>/dev/null
     sudo flatpak repair --system
@@ -317,7 +259,6 @@ CURRENT_KERNEL=$(uname -r)
 KERNEL_PACKAGES=$(dpkg -l | grep -E 'linux-image-[0-9]' | awk '{print $2}' | grep -v "$CURRENT_KERNEL")
 if [ -n "$KERNEL_PACKAGES" ]; then
     sudo env LC_ALL=C DEBIAN_FRONTEND=noninteractive apt-get purge $KERNEL_PACKAGES -y
-    REBOOT_NEEDED=true
 fi
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
@@ -337,18 +278,6 @@ find ~/.cache/thumbnails -type f -atime +7 -delete 2>/dev/null
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 if command -v flatpak &> /dev/null; then
-    FLATPAK_BEFORE=$(flatpak list --user --app --columns=application,version 2>/dev/null)
-
-    flatpak update --user -y
-
-    FLATPAK_AFTER=$(flatpak list --user --app --columns=application,version 2>/dev/null)
-
-    FLATPAK_PKGS=$(join -t$'\t' -j1 \
-        <(echo "$FLATPAK_BEFORE" | sort -t$'\t' -k1,1) \
-        <(echo "$FLATPAK_AFTER" | sort -t$'\t' -k1,1) 2>/dev/null \
-        | awk -F'\t' '$2 != $3 { printf "%s: %s → %s\n", $1, ($2==""?"?":$2), ($3==""?"?":$3) }')
-    print_pkg_list "$MSG_FLATPAK_UPDATED" "$FLATPAK_PKGS"
-
     flatpak uninstall --unused --user -y
     flatpak uninstall --unused --delete-data -y 2>/dev/null || flatpak uninstall --delete-data -y 2>/dev/null
     rm -rf ~/.local/share/flatpak/repo/tmp/* 2>/dev/null
@@ -379,18 +308,8 @@ rm -rf "$HOME/.cache/virt-manager" 2>/dev/null
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 # ---------------------------------------------------------------
-# PHASE: RESTART CHECK
+# REMOVE TEMPORARY PRIVILEGES
 # ---------------------------------------------------------------
-if [ -f /var/run/reboot-required ]; then
-    REBOOT_NEEDED=true
-fi
-STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
-
-if [ "$FWUPD_RESTART_NEEDED" = true ]; then
-    REBOOT_NEEDED=true
-fi
-STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
-
 if [[ "$USE_RUN0" -eq 1 ]]; then
     sudo rm -f "$RUN0_NOPASSWD_FILE"
     sudo systemctl try-restart polkit 2>/dev/null || true
@@ -402,11 +321,5 @@ echo -e "\n" >&3
 echo -e "${SUCCESS}======================================================${NC}" >&3
 echo -e "${SUCCESS}${MSG_DONE}${NC}" >&3
 echo -e "${SUCCESS}======================================================${NC}" >&3
-
-if [ "$REBOOT_NEEDED" = true ]; then
-    echo -e "${WARN}${MSG_RESTART_WARN}${NC}" >&3
-else
-    echo -e "${SUCCESS}${MSG_NO_RESTART}${NC}" >&3
-fi
 echo -e "${WARN}${MSG_PRESS_ENTER}${NC}" >&3
 read -r
