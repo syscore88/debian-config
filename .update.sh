@@ -39,8 +39,22 @@ LOG_FILE="$HOME/update_error_$(date +%Y%m%d_%H%M%S).log"
 exec 3>&1
 exec >>"$TMP_LOG" 2>&1
 
+PRIVS_GRANTED=0
+
+remove_temp_privs() {
+    [[ "$PRIVS_GRANTED" -eq 1 ]] || return 0
+    if [[ "$USE_RUN0" -eq 1 ]]; then
+        sudo -n rm -f "$RUN0_NOPASSWD_FILE" 2>/dev/null
+        sudo -n systemctl try-restart polkit 2>/dev/null || true
+    else
+        sudo -n rm -f /etc/sudoers.d/99-temp-update 2>/dev/null
+    fi
+    PRIVS_GRANTED=0
+}
+
 cleanup_on_exit() {
     local exit_code=$?
+    remove_temp_privs
     printf '\033[?25h' >&3
     echo "" >&3
     if [ "$exit_code" -ne 0 ]; then
@@ -100,6 +114,16 @@ if ! command -v visudo >/dev/null 2>&1 || sudo --version 2>/dev/null | grep -qi 
     USE_RUN0=1
 fi
 
+cleanup_stale_privs() {
+    sudo -n true 2>/dev/null || return 0
+    sudo -n rm -f /etc/sudoers.d/99-temp-update 2>/dev/null
+    if sudo -n test -f "$RUN0_NOPASSWD_FILE" 2>/dev/null; then
+        sudo -n rm -f "$RUN0_NOPASSWD_FILE" 2>/dev/null
+        sudo -n systemctl try-restart polkit 2>/dev/null || true
+    fi
+}
+cleanup_stale_privs
+
 echo -e "${INFO}======================================================${NC}" >&3
 echo -e "${INFO}${MSG_TITLE}${NC}" >&3
 echo -e "${INFO}======================================================${NC}" >&3
@@ -121,6 +145,7 @@ polkit.addRule(function(action, subject) {
 });
 EOF
     if printf '%s\n' "${SUDO_PASSWORD:-}" | sudo -S -p '' install -m 0644 -o root -g root "$POLKIT_TMP" "$RUN0_NOPASSWD_FILE" &>/dev/null; then
+        PRIVS_GRANTED=1
         printf '%s\n' "${SUDO_PASSWORD:-}" | sudo -S -p '' systemctl try-restart polkit 2>/dev/null || true
         if ! sudo -n true 2>/dev/null; then
             printf '%s\n' "${SUDO_PASSWORD:-}" | sudo -S -p '' systemctl try-restart polkit 2>/dev/null || true
@@ -142,6 +167,7 @@ else
     printf '%s ALL=(ALL:ALL) NOPASSWD: ALL\n' "$CURRENT_USER" > "$SUDOERS_TMP"
     if printf '%s\n' "${SUDO_PASSWORD:-}" | sudo -S -p '' visudo -cf "$SUDOERS_TMP" &>/dev/null \
        && printf '%s\n' "${SUDO_PASSWORD:-}" | sudo -S -p '' install -m 0440 -o root -g root "$SUDOERS_TMP" /etc/sudoers.d/99-temp-update &>/dev/null; then
+        PRIVS_GRANTED=1
         rm -f "$SUDOERS_TMP"
         unset SUDO_PASSWORD
         if ! sudo -n true 2>/dev/null; then
@@ -172,7 +198,7 @@ if ! sudo -n true 2>/dev/null; then
     exit 1
 fi
 
-TOTAL_STEPS=17
+TOTAL_STEPS=15
 STEP=0
 show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
@@ -206,43 +232,63 @@ if command -v deborphan &> /dev/null; then
 fi
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
-sudo apt-key net-update 2>/dev/null
-STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
+prune_apt_cache() {
+    local dir="/var/cache/apt/archives"
+    local group ver file g i j n tmp
+    local -A groups=()
+    local -a vers fls
 
-sudo env LC_ALL=C DEBIAN_FRONTEND=noninteractive apt-get autoclean
+    while IFS=$'\t' read -r group ver file; do
+        [[ -n "$file" ]] || continue
+        groups["$group"]+="$ver"$'\t'"$file"$'\n'
+    done < <(find "$dir" -maxdepth 1 -type f -name '*.deb' -printf '%f\n' 2>/dev/null \
+        | awk -F_ '{ v = $2; gsub(/%3[aA]/, ":", v); printf "%s_%s\t%s\t%s\n", $1, $3, v, $0 }')
+
+    for g in "${!groups[@]}"; do
+        vers=(); fls=()
+        while IFS=$'\t' read -r ver file; do
+            [[ -n "$file" ]] || continue
+            vers+=("$ver"); fls+=("$file")
+        done <<< "${groups[$g]}"
+        n=${#vers[@]}
+        (( n > 2 )) || continue
+
+        for (( i = 0; i < n; i++ )); do
+            for (( j = i + 1; j < n; j++ )); do
+                if dpkg --compare-versions "${vers[j]}" gt "${vers[i]}"; then
+                    tmp="${vers[i]}"; vers[i]="${vers[j]}"; vers[j]="$tmp"
+                    tmp="${fls[i]}";  fls[i]="${fls[j]}";   fls[j]="$tmp"
+                fi
+            done
+        done
+
+        for (( i = 2; i < n; i++ )); do
+            sudo rm -f -- "$dir/${fls[i]}"
+        done
+    done
+}
+prune_apt_cache
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 sudo find /etc/apt/sources.list.d/ -type f -name "*.save" -delete
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 if command -v flatpak &> /dev/null; then
-    sudo flatpak uninstall --unused --system -y
-    sudo flatpak uninstall --unused --delete-data -y 2>/dev/null
+    sudo flatpak uninstall --unused --system --delete-data -y
     sudo flatpak repair --system
 
     USED_REMOTES=$(flatpak list --columns=origin 2>/dev/null | sort -u)
     ALL_REMOTES=$(flatpak remotes --columns=name 2>/dev/null)
     while IFS= read -r remote; do
-        if [ -n "$remote" ] && ! echo "$USED_REMOTES" | grep -qx "$remote"; then
+        if [ -n "$remote" ] && [ "$remote" != "flathub" ] && ! echo "$USED_REMOTES" | grep -qxF -- "$remote"; then
             sudo flatpak remote-delete --force "$remote" 2>/dev/null
         fi
     done <<< "$ALL_REMOTES"
 
     sudo rm -rf /var/tmp/flatpak-cache-* 2>/dev/null
+    sudo rm -rf /var/lib/flatpak/repo/tmp/* 2>/dev/null
     sudo find /var/lib/flatpak -name "*.tmp" -delete 2>/dev/null
     sudo rm -f /var/lib/flatpak/history 2>/dev/null
-
-    INSTALLED_FLATPAKS=$(flatpak list --app --columns=application 2>/dev/null)
-    if [ -d "/var/app" ]; then
-        for app_dir in /var/app/*; do
-            if [ -d "$app_dir" ]; then
-                app_id=$(basename "$app_dir")
-                if ! echo "$INSTALLED_FLATPAKS" | grep -qx "$app_id"; then
-                    sudo rm -rf "$app_dir"
-                fi
-            fi
-        done
-    fi
 fi
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
@@ -251,15 +297,14 @@ sudo find /var/log -type f -name "*.gz" -mtime +7 -delete
 sudo find /var/log -type f -name "*.1" -delete
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
-sudo find /tmp -type f -atime +3 -delete 2>/dev/null
-sudo find /var/tmp -type f -atime +3 -delete 2>/dev/null
-STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
-
-CURRENT_KERNEL=$(uname -r)
-KERNEL_PACKAGES=$(dpkg -l | grep -E 'linux-image-[0-9]' | awk '{print $2}' | grep -v "$CURRENT_KERNEL")
-if [ -n "$KERNEL_PACKAGES" ]; then
-    sudo env LC_ALL=C DEBIAN_FRONTEND=noninteractive apt-get purge $KERNEL_PACKAGES -y
-fi
+sudo find /tmp -xdev -type f -atime +3 \
+    ! -path "/tmp/systemd-private-*" \
+    ! -path "/tmp/.*" \
+    -delete 2>/dev/null
+sudo find /var/tmp -xdev -type f -atime +3 \
+    ! -path "/var/tmp/systemd-private-*" \
+    ! -path "/var/tmp/.*" \
+    -delete 2>/dev/null
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 # ---------------------------------------------------------------
@@ -272,6 +317,9 @@ find ~/.cache -type f -atime +14 \
     ! -path "*/BraveSoftware/*" \
     ! -path "*/opera/*" \
     ! -path "*/vivaldi/*" \
+    ! -path "*/huggingface/*" \
+    ! -path "*/torch/*" \
+    ! -path "*/ms-playwright/*" \
     -delete 2>/dev/null
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
@@ -279,17 +327,17 @@ find ~/.cache/thumbnails -type f -atime +7 -delete 2>/dev/null
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 if command -v flatpak &> /dev/null; then
-    flatpak uninstall --unused --user -y
-    flatpak uninstall --unused --delete-data -y 2>/dev/null || flatpak uninstall --delete-data -y 2>/dev/null
+    flatpak uninstall --unused --user --delete-data -y
+    flatpak repair --user
     rm -rf ~/.local/share/flatpak/repo/tmp/* 2>/dev/null
     rm -f ~/.local/share/flatpak/history 2>/dev/null
 
     INSTALLED_FLATPAKS=$(flatpak list --app --columns=application 2>/dev/null)
-    if [ -d "$HOME/.var/app" ]; then
+    if [ -n "$INSTALLED_FLATPAKS" ] && [ -d "$HOME/.var/app" ]; then
         for app_dir in "$HOME/.var/app"/*; do
             if [ -d "$app_dir" ]; then
                 app_id=$(basename "$app_dir")
-                if ! echo "$INSTALLED_FLATPAKS" | grep -qx "$app_id"; then
+                if ! echo "$INSTALLED_FLATPAKS" | grep -qxF -- "$app_id"; then
                     rm -rf "$app_dir"
                 fi
             fi
@@ -298,7 +346,7 @@ if command -v flatpak &> /dev/null; then
 fi
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
-fc-cache -fv
+fc-cache -r
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 USER_ID=$(id -u)
@@ -311,12 +359,7 @@ STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 # ---------------------------------------------------------------
 # REMOVE TEMPORARY PRIVILEGES
 # ---------------------------------------------------------------
-if [[ "$USE_RUN0" -eq 1 ]]; then
-    sudo rm -f "$RUN0_NOPASSWD_FILE"
-    sudo systemctl try-restart polkit 2>/dev/null || true
-else
-    sudo rm -f /etc/sudoers.d/99-temp-update
-fi
+remove_temp_privs
 
 echo -e "\n" >&3
 echo -e "${SUCCESS}======================================================${NC}" >&3
