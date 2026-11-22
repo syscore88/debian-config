@@ -513,7 +513,7 @@ PKGS_CODECS=(
 
 for vendor in "${GPU_VENDORS[@]}"; do
     case "$vendor" in
-        "nvidia") SYSTEM_PKGS+=(vulkan-tools libvulkan-dev libgl1-mesa-dev mesa-common-dev libgl1-nvidia-glvnd-glx:i386 nvidia-vaapi-driver:amd64 nvidia-vaapi-driver:i386 nvidia-opencl-icd:amd64) ;;
+        "nvidia") SYSTEM_PKGS+=(dkms linux-headers-amd64 nvidia-open-kernel-dkms nvidia-driver nvidia-driver-libs:i386 vulkan-tools libvulkan-dev libgl1-mesa-dev mesa-common-dev libgl1-nvidia-glvnd-glx:i386 nvidia-vaapi-driver:amd64 nvidia-vaapi-driver:i386 nvidia-opencl-icd:amd64) ;;
         "amd")    SYSTEM_PKGS+=(libgl1-mesa-dri:amd64 libgl1-mesa-dri:i386 mesa-vulkan-drivers:amd64 mesa-vulkan-drivers:i386 libglx-mesa0:amd64 libglx-mesa0:i386 vulkan-tools libvulkan-dev libgl1-mesa-dev mesa-common-dev mesa-va-drivers:amd64 mesa-va-drivers:i386 mesa-opencl-icd:amd64) ;;
         "intel")  SYSTEM_PKGS+=(libgl1-mesa-dri:amd64 libgl1-mesa-dri:i386 mesa-vulkan-drivers:amd64 mesa-vulkan-drivers:i386 libglx-mesa0:amd64 libglx-mesa0:i386 vulkan-tools libvulkan-dev libgl1-mesa-dev mesa-common-dev intel-media-va-driver-non-free:amd64 intel-media-va-driver-non-free:i386 intel-opencl-icd:amd64) ;;
     esac
