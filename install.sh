@@ -27,7 +27,6 @@ TMP_LOG="$(mktemp /tmp/install-log.XXXXXX)"
 LOG_FILE="$HOME/install_error_$(date +%Y%m%d_%H%M%S).log"
 DEB_DIR="$(mktemp -d /tmp/debs.XXXXXX)"
 
-# Stan używany przez trap EXIT - musi istnieć PRZED jego instalacją (set -u)
 FAILED_PACKAGES=()
 SUDOERS_TMP=""
 LSFG_TMP=""
@@ -44,9 +43,9 @@ exec >>"$TMP_LOG" 2>&1
 
 cleanup_on_exit() {
     local exit_code=$?
-    trap '' INT TERM HUP     # sprzątania nikt nie przerwie
+    trap '' INT TERM HUP
     trap - ERR
-    set +e                   # każdy krok wykona się mimo błędu poprzedniego
+    set +e
 
     [ -n "${SUDO_KEEPALIVE_PID:-}" ] && kill "$SUDO_KEEPALIVE_PID" 2>/dev/null
     declare -F restore_packagekit >/dev/null && restore_packagekit
@@ -67,11 +66,11 @@ cleanup_on_exit() {
                 fi
             fi
         elif [ "${QUIET_WARNS:-0}" -eq 0 ]; then
-            rm -f "$LOG_FILE"    # czysty przebieg - nie zostawiaj logu "error"
+            rm -f "$LOG_FILE"
         else
-            cp -f "$TMP_LOG" "$LOG_FILE"   # ciche ostrzeżenia: zachowaj log, bez komunikatu w terminalu
+            cp -f "$TMP_LOG" "$LOG_FILE"
         fi
-    } >&3 2>/dev/null          # martwy terminal (SIGHUP) nie może przerwać sprzątania
+    } >&3 2>/dev/null
     rm -f "$TMP_LOG"
 
     local do_reboot=0
@@ -92,7 +91,6 @@ log_info()  { local m; m="$(_pick_msg "$1" "$2")"; _log_write "${INFO}==> $m${NC
 log_ok()    { local m; m="$(_pick_msg "$1" "$2")"; _log_write "${SUCCESS}[OK] $m${NC}"; }
 log_err()   { local m; m="$(_pick_msg "$1" "$2")"; _log_write "${ERR}[X] ERROR: $m${NC}"; }
 log_warn()  { local m; m="$(_pick_msg "$1" "$2")"; _log_write "${WARN}[!] WARN: $m${NC}"; }
-# Ostrzeżenie tylko do logu - bez wypisywania w terminalu (nie psuje paska postępu)
 log_quiet() { local m; m="$(_pick_msg "$1" "$2")"; QUIET_WARNS=$((QUIET_WARNS + 1)); echo "[!] WARN: $m"; cp -f "$TMP_LOG" "$LOG_FILE" 2>/dev/null || true; }
 
 trap 'log_err "Błąd w linii $LINENO. Polecenie: $BASH_COMMAND" "Error at line $LINENO. Command: $BASH_COMMAND"' ERR
@@ -105,7 +103,7 @@ PACKAGEKIT_UNITS=(packagekit.service packagekit-offline-update.service)
 
 disable_packagekit() {
     [[ "${PACKAGEKIT_MASKED:-0}" -eq 1 ]] && return 0
-    PACKAGEKIT_MASKED=1   # przed mask: przerwanie w trakcie i tak przywróci unit
+    PACKAGEKIT_MASKED=1
     sudo systemctl stop "${PACKAGEKIT_UNITS[@]}" 2>/dev/null || true
     if command -v killall >/dev/null 2>&1; then
         sudo killall -q packagekitd 2>/dev/null || true
@@ -219,7 +217,7 @@ if ! command -v visudo >/dev/null 2>&1 || grep -qi "run0" <<< "$SUDO_VERSION_OUT
 fi
 
 if [[ "$USE_RUN0" -eq 1 ]]; then
-    SUDO_READY=1   # od teraz cleanup ma co sprzątać
+    SUDO_READY=1
     sudo tee "$RUN0_NOPASSWD_FILE" > /dev/null << EOF
 polkit.addRule(function(action, subject) {
     if (subject.user == "$CURRENT_USER") {
@@ -230,7 +228,7 @@ EOF
     sudo systemctl try-restart polkit 2>/dev/null || true
 else
     sudo -v
-    SUDO_READY=1   # od teraz cleanup ma co sprzątać
+    SUDO_READY=1
 
     (
         set +e
@@ -379,7 +377,6 @@ gnome-maps gnome-weather gnome-calendar gnome-clocks gnome-music
 parole rhythmbox showtime kwalletmanager totem exaile mpv juk
 )
 
-# Pakiety, których usunięcie (bezpośrednie lub kaskadowe) jest niedopuszczalne
 CORE_PKGS=(sudo systemd network-manager plasma-desktop plasma-workspace kde-plasma-desktop
            gnome-shell gnome-session gdm3 sddm cosmic-session xorg xwayland)
 CORE_RE="^($(IFS='|'; echo "${CORE_PKGS[*]}"))\$"
@@ -391,7 +388,6 @@ would_remove_core() {
 }
 
 wait_for_apt
-# Oznacz kluczowe pakiety jako ręcznie zainstalowane, żeby autoremove ich nie ruszył
 for core in "${CORE_PKGS[@]}"; do
     pkg_installed "$core" && sudo apt-mark manual "$core" >/dev/null || true
 done
@@ -782,7 +778,6 @@ if command -v ufw &>/dev/null || [[ -x /usr/sbin/ufw ]]; then
     UFW_STATUS="$(sudo ufw status 2>/dev/null || true)"
     UFW_WAS_ACTIVE=0
     grep -qi '^Status: active' <<< "$UFW_STATUS" && UFW_WAS_ACTIVE=1
-    # Domyślne polityki ustawiamy tylko przy świeżym firewallu; istniejących reguł nie kasujemy
     if [[ "$UFW_WAS_ACTIVE" -eq 0 ]]; then
         sudo ufw default deny incoming || true
         sudo ufw default allow outgoing || true
@@ -843,7 +838,6 @@ EOF
 fi
 
 sudo sed -i 's/^#\?[[:space:]]*DefaultTimeoutStopSec=.*/DefaultTimeoutStopSec=3s/' /etc/systemd/system.conf
-# Przywróć domyślny start timeout, jeśli poprzednia wersja skryptu ustawiła 3s
 sudo sed -i 's/^DefaultTimeoutStartSec=3s$/#DefaultTimeoutStartSec=90s/' /etc/systemd/system.conf || true
 sudo systemctl disable NetworkManager-wait-online.service 2>/dev/null || true
 sudo journalctl --vacuum-time=2d || true
