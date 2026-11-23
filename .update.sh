@@ -54,10 +54,9 @@ fi
 remove_temp_privs() {
     [[ "$PRIVS_GRANTED" -eq 1 ]] || return 0
     if [[ "$USE_RUN0" -eq 1 ]]; then
-        run0 rm -f "$RUN0_NOPASSWD_FILE" 2>/dev/null || true
-        run0 systemctl try-restart polkit 2>/dev/null || true
+        run0 sh -c 'rm -f "$1"; systemctl try-restart polkit' _ "$RUN0_NOPASSWD_FILE" </dev/null 3>&- 2>/dev/null || true
     else
-        sudo -n rm -f /etc/sudoers.d/99-temp-update 2>/dev/null || true
+        sudo -n rm -f /etc/sudoers.d/99-temp-update </dev/null 3>&- 2>/dev/null || true
     fi
     PRIVS_GRANTED=0
 }
@@ -65,19 +64,20 @@ remove_temp_privs() {
 cleanup_on_exit() {
     local exit_code=$?
     remove_temp_privs
-    printf '\033[?25h' >&3
-    echo "" >&3
+    printf '\033[?25h' >&3 2>/dev/null || true
+    echo "" >&3 2>/dev/null || true
     if [ "$exit_code" -ne 0 ]; then
         cp -f "$TMP_LOG" "$LOG_FILE" 2>/dev/null || true
         if [ "$SCRIPT_LANG" = "pl" ]; then
-            echo -e "${ERR}[X] Wystąpił błąd (kod: $exit_code). Szczegółowy log zapisano w: $LOG_FILE${NC}" >&3
+            echo -e "${ERR}[X] Wystąpił błąd (kod: $exit_code). Szczegółowy log zapisano w: $LOG_FILE${NC}" >&3 2>/dev/null || true
         else
-            echo -e "${ERR}[X] An error occurred (code: $exit_code). Detailed log saved to: $LOG_FILE${NC}" >&3
+            echo -e "${ERR}[X] An error occurred (code: $exit_code). Detailed log saved to: $LOG_FILE${NC}" >&3 2>/dev/null || true
         fi
     else
         rm -f "$LOG_FILE"
     fi
     rm -f "$TMP_LOG"
+    exec 3>&- 2>/dev/null || true
 }
 trap cleanup_on_exit EXIT
 
@@ -121,8 +121,8 @@ show_progress() {
 
 cleanup_stale_privs() {
     if [[ "$USE_RUN0" -eq 0 ]]; then
-        sudo -n true 2>/dev/null || return 0
-        sudo -n rm -f /etc/sudoers.d/99-temp-update 2>/dev/null || true
+        sudo -n true </dev/null 3>&- 2>/dev/null || return 0
+        sudo -n rm -f /etc/sudoers.d/99-temp-update </dev/null 3>&- 2>/dev/null || true
     fi
 }
 cleanup_stale_privs
@@ -143,7 +143,7 @@ EOF
     if { [[ -r /dev/tty ]] && run0 install -m 0644 -o root -g root "$POLKIT_TMP" "$RUN0_NOPASSWD_FILE" </dev/tty >&3 2>&3; } \
        || { [[ ! -r /dev/tty ]] && run0 install -m 0644 -o root -g root "$POLKIT_TMP" "$RUN0_NOPASSWD_FILE" >&3 2>&3; }; then
         PRIVS_GRANTED=1
-        run0 systemctl try-restart polkit 2>/dev/null || true
+        run0 systemctl try-restart polkit </dev/null 3>&- 2>/dev/null || true
         rm -f "$POLKIT_TMP"
     else
         rm -f "$POLKIT_TMP"
@@ -165,12 +165,12 @@ else
 
     SUDOERS_TMP="$(mktemp)"
     printf '%s ALL=(ALL:ALL) NOPASSWD: ALL\n' "$CURRENT_USER" > "$SUDOERS_TMP"
-    if printf '%s\n' "${SUDO_PASSWORD:-}" | sudo -S -p '' visudo -cf "$SUDOERS_TMP" &>/dev/null \
-       && printf '%s\n' "${SUDO_PASSWORD:-}" | sudo -S -p '' install -m 0440 -o root -g root "$SUDOERS_TMP" /etc/sudoers.d/99-temp-update &>/dev/null; then
+    if printf '%s\n' "${SUDO_PASSWORD:-}" | sudo -S -p '' visudo -cf "$SUDOERS_TMP" 3>&- &>/dev/null \
+       && printf '%s\n' "${SUDO_PASSWORD:-}" | sudo -S -p '' install -m 0440 -o root -g root "$SUDOERS_TMP" /etc/sudoers.d/99-temp-update 3>&- &>/dev/null; then
         PRIVS_GRANTED=1
         rm -f "$SUDOERS_TMP"
         unset SUDO_PASSWORD
-        if ! sudo -n true 2>/dev/null; then
+        if ! sudo -n true </dev/null 3>&- 2>/dev/null; then
             if [ "$SCRIPT_LANG" = "pl" ]; then
                 echo -e "${WARN}[!] Reguła NOPASSWD zainstalowana, ale sudo nadal prosi o hasło - sprawdź 'sudo -l' (możliwa inna reguła w /etc/sudoers nadpisująca wpis z sudoers.d).${NC}" >&3
             else
@@ -188,7 +188,7 @@ else
         exit 1
     fi
 
-    if ! sudo -n true 2>/dev/null; then
+    if ! sudo -n true </dev/null 3>&- 2>/dev/null; then
         if [ "$SCRIPT_LANG" = "pl" ]; then
             echo -e "${ERR}[X] Nie udało się uzyskać uprawnień bez hasła – przerywam.${NC}" >&3
         else
@@ -207,31 +207,31 @@ show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 # PHASE: DESKTOP EXTENSIONS (GNOME / CINNAMON)
 # ---------------------------------------------------------------
 if command -v gext &> /dev/null; then
-    gext update
+    gext update </dev/null 3>&-
 fi
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 if command -v cinnamon-spice-updater &> /dev/null; then
-    cinnamon-spice-updater --update-all
+    cinnamon-spice-updater --update-all </dev/null 3>&-
 fi
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 if command -v fwupdmgr &> /dev/null; then
-    "$ELEVATE" fwupdmgr refresh --force
-    "$ELEVATE" fwupdmgr update -y
+    "$ELEVATE" fwupdmgr refresh --force </dev/null 3>&-
+    "$ELEVATE" fwupdmgr update -y </dev/null 3>&-
 fi
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 # ---------------------------------------------------------------
 # PHASE: SYSTEM CLEANUP (SUDO)
 # ---------------------------------------------------------------
-"$ELEVATE" env LC_ALL=C DEBIAN_FRONTEND=noninteractive apt-get autoremove --purge -y
+"$ELEVATE" env LC_ALL=C DEBIAN_FRONTEND=noninteractive apt-get autoremove --purge -y </dev/null 3>&-
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 if command -v deborphan &> /dev/null; then
-    mapfile -t ORPHANS < <(deborphan 2>/dev/null)
+    mapfile -t ORPHANS < <(deborphan </dev/null 3>&- 2>/dev/null)
     if (( ${#ORPHANS[@]} > 0 )); then
-        "$ELEVATE" env LC_ALL=C DEBIAN_FRONTEND=noninteractive apt-get purge "${ORPHANS[@]}" -y
+        "$ELEVATE" env LC_ALL=C DEBIAN_FRONTEND=noninteractive apt-get purge "${ORPHANS[@]}" -y </dev/null 3>&-
     fi
 fi
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
@@ -275,10 +275,10 @@ prune_apt_cache() {
         "$ELEVATE" rm -f -- "${to_delete[@]}"
     fi
 }
-prune_apt_cache
+prune_apt_cache </dev/null 3>&-
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
-"$ELEVATE" find /etc/apt/sources.list.d/ -type f -name "*.save" -delete
+"$ELEVATE" find /etc/apt/sources.list.d/ -type f -name "*.save" -delete </dev/null 3>&-
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 if command -v flatpak &> /dev/null; then
@@ -297,22 +297,26 @@ if command -v flatpak &> /dev/null; then
     "$ELEVATE" rm -rf /var/lib/flatpak/repo/tmp/* 2>/dev/null
     "$ELEVATE" find /var/lib/flatpak -name "*.tmp" -delete 2>/dev/null
     "$ELEVATE" rm -f /var/lib/flatpak/history 2>/dev/null
-fi
+fi </dev/null 3>&-
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
-"$ELEVATE" journalctl --vacuum-time=7d
-"$ELEVATE" find /var/log -type f -name "*.gz" -mtime +7 -delete
-"$ELEVATE" find /var/log -type f -name "*.1" -delete
+{
+    "$ELEVATE" journalctl --vacuum-time=7d
+    "$ELEVATE" find /var/log -type f -name "*.gz" -mtime +7 -delete
+    "$ELEVATE" find /var/log -type f -name "*.1" -delete
+} </dev/null 3>&-
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
-"$ELEVATE" find /tmp -xdev -type f -atime +3 \
-    ! -path "/tmp/systemd-private-*" \
-    ! -path "/tmp/.*" \
-    -delete 2>/dev/null
-"$ELEVATE" find /var/tmp -xdev -type f -atime +3 \
-    ! -path "/var/tmp/systemd-private-*" \
-    ! -path "/var/tmp/.*" \
-    -delete 2>/dev/null
+{
+    "$ELEVATE" find /tmp -xdev -type f -atime +3 \
+        ! -path "/tmp/systemd-private-*" \
+        ! -path "/tmp/.*" \
+        -delete 2>/dev/null
+    "$ELEVATE" find /var/tmp -xdev -type f -atime +3 \
+        ! -path "/var/tmp/systemd-private-*" \
+        ! -path "/var/tmp/.*" \
+        -delete 2>/dev/null
+} </dev/null 3>&-
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 # ---------------------------------------------------------------
@@ -328,10 +332,10 @@ find ~/.cache -type f -atime +14 \
     ! -path "*/huggingface/*" \
     ! -path "*/torch/*" \
     ! -path "*/ms-playwright/*" \
-    -delete 2>/dev/null
+    -delete </dev/null 3>&- 2>/dev/null
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
-find ~/.cache/thumbnails -type f -atime +7 -delete 2>/dev/null
+find ~/.cache/thumbnails -type f -atime +7 -delete </dev/null 3>&- 2>/dev/null
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 if command -v flatpak &> /dev/null; then
@@ -351,17 +355,19 @@ if command -v flatpak &> /dev/null; then
             fi
         done
     fi
-fi
+fi </dev/null 3>&-
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
-fc-cache -r
+fc-cache -r </dev/null 3>&-
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
-USER_ID=$(id -u)
-if command -v dconf &> /dev/null && [ -S "/run/user/$USER_ID/bus" ]; then
-    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$USER_ID/bus" dconf reset /org/virt-manager/virt-manager/urls/isos 2>/dev/null
-fi
-rm -rf "$HOME/.cache/virt-manager" 2>/dev/null
+{
+    USER_ID=$(id -u)
+    if command -v dconf &> /dev/null && [ -S "/run/user/$USER_ID/bus" ]; then
+        DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$USER_ID/bus" dconf reset /org/virt-manager/virt-manager/urls/isos 2>/dev/null
+    fi
+    rm -rf "$HOME/.cache/virt-manager" 2>/dev/null
+} </dev/null 3>&-
 STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 
 # ---------------------------------------------------------------
@@ -374,8 +380,12 @@ echo -e "${SUCCESS}======================================================${NC}" 
 echo -e "${SUCCESS}${MSG_DONE}${NC}" >&3
 echo -e "${SUCCESS}======================================================${NC}" >&3
 echo -e "${WARN}${MSG_PRESS_ENTER}${NC}" >&3
-if [[ -r /dev/tty ]]; then
-    read -r < /dev/tty || true
+if exec 4</dev/tty 2>/dev/null; then
+    stty sane <&4 2>/dev/null || true
+    IFS= read -r _ <&4 || true
+    exec 4<&-
 else
-    read -r || true
+    stty sane 2>/dev/null || true
+    IFS= read -r _ || true
 fi
+exit 0
