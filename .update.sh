@@ -53,12 +53,13 @@ fi
 
 remove_temp_privs() {
     [[ "$PRIVS_GRANTED" -eq 1 ]] || return 0
+    PRIVS_GRANTED=0
     if [[ "$USE_RUN0" -eq 1 ]]; then
-        run0 sh -c 'rm -f "$1"; systemctl try-restart polkit' _ "$RUN0_NOPASSWD_FILE" </dev/null 3>&- 2>/dev/null || true
+        [[ -e "$RUN0_NOPASSWD_FILE" ]] || return 0
+        run0 sh -c 'rm -f "$1"; systemctl try-restart polkit 2>/dev/null || true' _ "$RUN0_NOPASSWD_FILE" </dev/null 3>&- 2>/dev/null || true
     else
         sudo -n rm -f /etc/sudoers.d/99-temp-update </dev/null 3>&- 2>/dev/null || true
     fi
-    PRIVS_GRANTED=0
 }
 
 cleanup_on_exit() {
@@ -140,10 +141,9 @@ polkit.addRule(function(action, subject) {
     }
 });
 EOF
-    if { [[ -r /dev/tty ]] && run0 install -m 0644 -o root -g root "$POLKIT_TMP" "$RUN0_NOPASSWD_FILE" </dev/tty >&3 2>&3; } \
-       || { [[ ! -r /dev/tty ]] && run0 install -m 0644 -o root -g root "$POLKIT_TMP" "$RUN0_NOPASSWD_FILE" >&3 2>&3; }; then
+    if { [[ -r /dev/tty ]] && run0 sh -c 'install -m 0644 -o root -g root "$1" "$2" || exit 1; systemctl try-restart polkit 2>/dev/null || true' _ "$POLKIT_TMP" "$RUN0_NOPASSWD_FILE" </dev/tty >&3 2>&3; } \
+       || { [[ ! -r /dev/tty ]] && run0 sh -c 'install -m 0644 -o root -g root "$1" "$2" || exit 1; systemctl try-restart polkit 2>/dev/null || true' _ "$POLKIT_TMP" "$RUN0_NOPASSWD_FILE" >&3 2>&3; }; then
         PRIVS_GRANTED=1
-        run0 systemctl try-restart polkit </dev/null 3>&- 2>/dev/null || true
         rm -f "$POLKIT_TMP"
     else
         rm -f "$POLKIT_TMP"
@@ -289,7 +289,7 @@ if command -v flatpak &> /dev/null; then
     ALL_REMOTES=$(flatpak remotes --system --columns=name 2>/dev/null)
     while IFS= read -r remote; do
         if [ -n "$remote" ] && [ "$remote" != "flathub" ] && ! echo "$USED_REMOTES" | grep -qxF -- "$remote"; then
-            "$ELEVATE" flatpak remote-delete --system --force "$remote" 2>/dev/null
+            "$ELEVATE" flatpak remote-delete --system --force "$remote" </dev/null 2>/dev/null
         fi
     done <<< "$ALL_REMOTES"
 
@@ -375,6 +375,7 @@ STEP=$((STEP+1)); show_progress $STEP $TOTAL_STEPS "$MSG_PHASE_CLEAN_SYS"
 # ---------------------------------------------------------------
 remove_temp_privs
 
+printf '\033[?25h' >&3 2>/dev/null || true
 echo -e "\n" >&3
 echo -e "${SUCCESS}======================================================${NC}" >&3
 echo -e "${SUCCESS}${MSG_DONE}${NC}" >&3
@@ -388,4 +389,13 @@ else
     stty sane 2>/dev/null || true
     IFS= read -r _ || true
 fi
+
+PARENT_COMM="$(ps -o comm= -p "$PPID" 2>/dev/null | tr -d '[:space:]')"
+PARENT_COMM="${PARENT_COMM#-}"
+case "$PARENT_COMM" in
+    bash|zsh|fish|sh|dash|ksh)
+        trap '' HUP PIPE
+        kill -HUP "$PPID" 2>/dev/null || true
+        ;;
+esac
 exit 0
