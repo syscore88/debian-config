@@ -531,7 +531,7 @@ SYSTEM_PKGS=(
     adb fastboot fsarchiver inxi pv rsync cdemu-daemon cdemu-client
     7zip makeself zenity innoextract needrestart flatpak timeshift
     python3-defusedxml python3-packaging python3-pip python3-tqdm vlc vlc-plugin-access-extra
-    libayatana-appindicator3-1 gamemode mangohud qmmp
+    libayatana-appindicator3-1 gamemode mangohud audacious
     gcc g++ clang llvm make cmake meson ninja-build just build-essential git
     dkms linux-headers-amd64 libelf-dev
     qt6-tools-dev ghostwriter qbittorrent gnome-disk-utility
